@@ -19,8 +19,8 @@ class OrganisationSetting extends Model {
   public sub_county!: string;
   public ward!: string;
 
-  public readonly created_at!: Date;
-  public readonly updated_at!: Date;
+  public readonly createdAt!: Date;
+  public readonly updatedAt!: Date;
 }
 
 OrganisationSetting.init(

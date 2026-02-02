@@ -46,6 +46,9 @@ import Permission from './models/Permission';
 import RolePermission from './models/RolePermission';
 import Invoice from "./models/Invoice";
 import Payment from "./models/Payment";
+import Stock from "./models/Stock";
+import Package from "./models/Package";
+import AppointmentType from "./models/AppointmentType";
 
 const app = express();
 
@@ -149,28 +152,26 @@ const createEncounterTableManually = async (): Promise<void> => {
     const database = (sequelize.config as any).database;
 
     const patientResults = await runQuery(`
-      SELECT COLUMN_NAME, DATA_TYPE, COLUMN_TYPE
+      SELECT COLUMN_NAME, DATA_TYPE
       FROM INFORMATION_SCHEMA.COLUMNS
-      WHERE TABLE_SCHEMA = '${database}'
-        AND TABLE_NAME = 'hms_patients'
+      WHERE TABLE_NAME = 'hms_patients'
         AND COLUMN_NAME = 'id'
     `);
 
     const staffResults = await runQuery(`
-      SELECT COLUMN_NAME, DATA_TYPE, COLUMN_TYPE
+      SELECT COLUMN_NAME, DATA_TYPE
       FROM INFORMATION_SCHEMA.COLUMNS
-      WHERE TABLE_SCHEMA = '${database}'
-      AND TABLE_NAME = 'hms_staff'
+      WHERE TABLE_NAME = 'hms_staff'
         AND COLUMN_NAME = 'id'
     `);
 
     const patientIdType = Array.isArray(patientResults) && patientResults.length > 0
-      ? (patientResults[0] as any).COLUMN_TYPE
-      : 'INT UNSIGNED';
+      ? (patientResults[0] as any).DATA_TYPE
+      : 'INTEGER';
 
     const staffIdType = Array.isArray(staffResults) && staffResults.length > 0
-      ? (staffResults[0] as any).COLUMN_TYPE
-      : 'INT UNSIGNED';
+      ? (staffResults[0] as any).DATA_TYPE
+      : 'INTEGER';
 
     console.log(`📊 Patient ID type: ${patientIdType}`);
     console.log(`📊 Staff ID type: ${staffIdType}`);
@@ -184,8 +185,8 @@ const createEncounterTableManually = async (): Promise<void> => {
         notes TEXT,
         patient_id INTEGER NOT NULL REFERENCES hms_patients(id),
         provider_id INTEGER NOT NULL REFERENCES hms_staff(id),
-        "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
@@ -231,8 +232,8 @@ const createEncounterTableManually = async (): Promise<void> => {
           notes TEXT,
           patient_id INTEGER NOT NULL,
           provider_id INTEGER NOT NULL,
-          "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-          "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
         );
       `);
       console.log("✅ hms_encounters table created without foreign keys");
@@ -294,8 +295,8 @@ const createTriageTableManually = async (): Promise<void> => {
         lmp_date DATE,
         comments TEXT,
         date TIMESTAMP WITH TIME ZONE,
-        "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
     console.log("✅ Manual creation of hms_triages table completed");
@@ -315,8 +316,8 @@ const createAppointmentTableManually = async (): Promise<void> => {
         reason TEXT,
         doctor_id INTEGER NOT NULL,
         patient_id INTEGER NOT NULL REFERENCES hms_patients(id) ON DELETE CASCADE,
-        "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
     console.log("✅ Manual creation of hms_appointments table completed");
@@ -359,8 +360,7 @@ const verifyTableExists = async (tableName: string): Promise<boolean> => {
     const [rows] = await sequelize.query(`
       SELECT COUNT(*) as table_count
       FROM information_schema.tables
-      WHERE table_schema = '${database}'
-        AND table_name = '${tableName}'
+      WHERE table_name = '${tableName}'
     `);
     const resultArray = Array.isArray(rows) ? rows as any[] : [];
     if (resultArray.length > 0 && resultArray[0].table_count !== undefined) {
@@ -474,7 +474,7 @@ const seedPatientsAndTriage = async (): Promise<number[]> => {
 
 const seedEncounters = async (patientIds: number[]): Promise<void> => {
   console.log("🌱 Seeding encounters (idempotent)...");
-  const encountersTableExists = await verifyTableExists("encounters");
+  const encountersTableExists = await verifyTableExists("hms_encounters");
   if (!encountersTableExists) {
     console.warn("⚠️ Cannot seed encounters - table does not exist!");
     return;
@@ -672,7 +672,22 @@ const setupRoutes = async (): Promise<void> => {
 
       // Sync independent models first
       await syncModelsSequentially(
-        [OrganisationSetting, PaymentMethod, Product, Staff, User, Patient, UserRole, Permission, RolePermission],
+        [
+          OrganisationSetting,
+          PaymentMethod,
+          Product,
+          Staff,
+          User,
+          Patient,
+          UserRole,
+          Permission,
+          RolePermission,
+          AppointmentType,
+          Stock,
+          Package,
+          Invoice,
+          Payment
+        ],
         "independent models"
       );
 

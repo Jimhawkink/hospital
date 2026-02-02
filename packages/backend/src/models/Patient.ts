@@ -128,12 +128,12 @@ Patient.init(
     createdAt: {
       type: DataTypes.DATE,
       allowNull: false,
-      field: "createdAt",
+      field: "created_at",
     },
     updatedAt: {
       type: DataTypes.DATE,
       allowNull: false,
-      field: "updatedAt",
+      field: "updated_at",
     },
   },
   {
