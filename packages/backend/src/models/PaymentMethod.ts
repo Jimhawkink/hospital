@@ -45,7 +45,7 @@ PaymentMethod.init(
   },
   {
     sequelize,
-    tableName: "payment_methods",
+    tableName: "hms_payment_methods",
     modelName: "PaymentMethod",
     timestamps: true,
   }

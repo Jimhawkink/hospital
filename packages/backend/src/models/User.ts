@@ -37,7 +37,7 @@ User.init(
   {
     sequelize,
     modelName: "User",
-    tableName: "users",
+    tableName: "hms_users",
     indexes: [
       {
         unique: true,

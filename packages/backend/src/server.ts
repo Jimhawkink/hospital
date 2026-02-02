@@ -152,7 +152,7 @@ const createEncounterTableManually = async (): Promise<void> => {
       SELECT COLUMN_NAME, DATA_TYPE, COLUMN_TYPE
       FROM INFORMATION_SCHEMA.COLUMNS
       WHERE TABLE_SCHEMA = '${database}'
-        AND TABLE_NAME = 'patients'
+        AND TABLE_NAME = 'hms_patients'
         AND COLUMN_NAME = 'id'
     `);
 
@@ -160,7 +160,7 @@ const createEncounterTableManually = async (): Promise<void> => {
       SELECT COLUMN_NAME, DATA_TYPE, COLUMN_TYPE
       FROM INFORMATION_SCHEMA.COLUMNS
       WHERE TABLE_SCHEMA = '${database}'
-        AND TABLE_NAME = 'staff'
+      AND TABLE_NAME = 'hms_staff'
         AND COLUMN_NAME = 'id'
     `);
 
@@ -176,14 +176,14 @@ const createEncounterTableManually = async (): Promise<void> => {
     console.log(`📊 Staff ID type: ${staffIdType}`);
 
     await runQuery(`
-      CREATE TABLE IF NOT EXISTS encounters (
+      CREATE TABLE IF NOT EXISTS hms_encounters (
         id SERIAL PRIMARY KEY,
         encounter_number VARCHAR(255) NOT NULL UNIQUE,
         encounter_type VARCHAR(255) NOT NULL,
         priority_type VARCHAR(255) NOT NULL,
         notes TEXT,
-        patient_id INTEGER NOT NULL REFERENCES "Patients"(id),
-        provider_id INTEGER NOT NULL REFERENCES staff(id),
+        patient_id INTEGER NOT NULL REFERENCES hms_patients(id),
+        provider_id INTEGER NOT NULL REFERENCES hms_staff(id),
         "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
@@ -194,9 +194,9 @@ const createEncounterTableManually = async (): Promise<void> => {
     // Attempt foreign keys, but do not fail hard when impossible (we logged earlier)
     try {
       await runQuery(`
-        ALTER TABLE encounters
+        ALTER TABLE hms_encounters
         ADD CONSTRAINT fk_encounters_patient_id
-        FOREIGN KEY (patient_id) REFERENCES patients(id)
+        FOREIGN KEY (patient_id) REFERENCES hms_patients(id)
         ON DELETE RESTRICT ON UPDATE CASCADE;
       `);
       console.log("✅ Added foreign key for patient_id");
@@ -206,9 +206,9 @@ const createEncounterTableManually = async (): Promise<void> => {
 
     try {
       await runQuery(`
-        ALTER TABLE encounters
+        ALTER TABLE hms_encounters
         ADD CONSTRAINT fk_encounters_provider_id
-        FOREIGN KEY (provider_id) REFERENCES staff(id)
+        FOREIGN KEY (provider_id) REFERENCES hms_staff(id)
         ON DELETE RESTRICT ON UPDATE CASCADE;
       `);
       console.log("✅ Added foreign key for provider_id");
@@ -223,24 +223,21 @@ const createEncounterTableManually = async (): Promise<void> => {
     try {
       console.log("🔄 Attempting to create table without foreign keys...");
       await runQuery(`
-        CREATE TABLE IF NOT EXISTS encounters (
-          id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        CREATE TABLE IF NOT EXISTS hms_encounters (
+          id SERIAL PRIMARY KEY,
           encounter_number VARCHAR(255) NOT NULL UNIQUE,
           encounter_type VARCHAR(255) NOT NULL,
           priority_type VARCHAR(255) NOT NULL,
           notes TEXT,
-          patient_id INT UNSIGNED NOT NULL,
-          provider_id INT UNSIGNED NOT NULL,
-          createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          INDEX (patient_id),
-          INDEX (provider_id),
-          INDEX (encounter_number)
-        ) ENGINE=InnoDB;
+          patient_id INTEGER NOT NULL,
+          provider_id INTEGER NOT NULL,
+          "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
       `);
-      console.log("✅ Encounters table created without foreign keys");
+      console.log("✅ hms_encounters table created without foreign keys");
     } catch (finalError) {
-      console.error("❌ Final attempt to create encounters table failed:", finalError);
+      console.error("❌ Final attempt to create hms_encounters table failed:", finalError);
     }
   }
 };
@@ -249,9 +246,9 @@ const createComplaintTableManually = async (): Promise<void> => {
   try {
     console.log("🛠️ Attempting manual creation of complaints table...");
     await runQuery(`
-      CREATE TABLE IF NOT EXISTS complaints (
+      CREATE TABLE IF NOT EXISTS hms_complaints (
         id SERIAL PRIMARY KEY,
-        encounter_id INTEGER NOT NULL REFERENCES encounters(id) ON DELETE CASCADE,
+        encounter_id INTEGER NOT NULL REFERENCES hms_encounters(id) ON DELETE CASCADE,
         complaint_text TEXT NOT NULL,
         duration_value INTEGER,
         duration_unit VARCHAR(50),
@@ -260,18 +257,18 @@ const createComplaintTableManually = async (): Promise<void> => {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    console.log("✅ Manual creation of complaints table completed");
+    console.log("✅ Manual creation of hms_complaints table completed");
 
     try {
       await runQuery(`
-        ALTER TABLE complaints
+        ALTER TABLE hms_complaints
         ADD CONSTRAINT fk_complaints_encounter_id
-        FOREIGN KEY (encounter_id) REFERENCES encounters(id)
+        FOREIGN KEY (encounter_id) REFERENCES hms_encounters(id)
         ON DELETE CASCADE ON UPDATE CASCADE;
       `);
-      console.log("✅ Added foreign key for complaints.encounter_id");
+      console.log("✅ Added foreign key for hms_complaints.encounter_id");
     } catch (fkError: any) {
-      console.warn("⚠️ Could not add foreign key for complaints.encounter_id:", fkError.message || fkError);
+      console.warn("⚠️ Could not add foreign key for hms_complaints.encounter_id:", fkError.message || fkError);
     }
   } catch (error) {
     console.error("❌ Manual creation of complaints table failed:", error);
@@ -282,9 +279,9 @@ const createTriageTableManually = async (): Promise<void> => {
   try {
     console.log("🛠️ Attempting manual creation of triage table...");
     await runQuery(`
-      CREATE TABLE IF NOT EXISTS triages (
-        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        patient_id INT UNSIGNED NOT NULL,
+      CREATE TABLE IF NOT EXISTS hms_triages (
+        id SERIAL PRIMARY KEY,
+        patient_id INTEGER NOT NULL REFERENCES hms_patients(id) ON DELETE CASCADE,
         patient_status VARCHAR(255),
         temperature FLOAT,
         heart_rate INT,
@@ -296,13 +293,12 @@ const createTriageTableManually = async (): Promise<void> => {
         muac FLOAT,
         lmp_date DATE,
         comments TEXT,
-        date DATETIME,
-        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX (patient_id)
-      ) ENGINE=InnoDB;
+        date TIMESTAMP WITH TIME ZONE,
+        "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
     `);
-    console.log("✅ Manual creation of triage table completed");
+    console.log("✅ Manual creation of hms_triages table completed");
   } catch (error) {
     console.error("❌ Manual creation of triage table failed:", error);
   }
@@ -312,18 +308,18 @@ const createAppointmentTableManually = async (): Promise<void> => {
   try {
     console.log("🛠️ Attempting manual creation of appointments table...");
     await runQuery(`
-      CREATE TABLE IF NOT EXISTS appointments (
+      CREATE TABLE IF NOT EXISTS hms_appointments (
         id SERIAL PRIMARY KEY,
         appointment_date TIMESTAMP WITH TIME ZONE NOT NULL,
         status VARCHAR(50) NOT NULL DEFAULT 'Scheduled',
         reason TEXT,
         doctor_id INTEGER NOT NULL,
-        patient_id INTEGER NOT NULL REFERENCES "Patients"(id) ON DELETE CASCADE,
+        patient_id INTEGER NOT NULL REFERENCES hms_patients(id) ON DELETE CASCADE,
         "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    console.log("✅ Manual creation of appointments table completed");
+    console.log("✅ Manual creation of hms_appointments table completed");
   } catch (error) {
     console.error("❌ Manual creation of appointments table failed:", error);
   }
@@ -705,8 +701,8 @@ const setupRoutes = async (): Promise<void> => {
     // Verify tables exist
     // ----------------------
     console.log("🔍 Verifying all tables exist before seeding...");
-    const requiredTables = ["patients", "staff", "triage", "appointments"];
-    const optionalTables = ["encounters", "complaints", "investigation_tests", "investigation_requests", "investigation_results"];
+    const requiredTables = ["hms_patients", "hms_staff", "hms_triages", "hms_appointments"];
+    const optionalTables = ["hms_encounters", "hms_complaints", "hms_investigation_tests", "hms_investigation_requests", "hms_investigation_results"];
     let criticalTablesExist = true;
 
     for (const table of requiredTables) {

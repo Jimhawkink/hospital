@@ -62,7 +62,7 @@ InvestigationResult.init({
   },
 }, {
   sequelize,
-  tableName: 'investigation_results',
+  tableName: 'hms_investigation_results',
   timestamps: true,
 });
 

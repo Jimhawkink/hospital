@@ -36,7 +36,7 @@ Complaint.init(
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'encounters',
+        model: 'hms_encounters',
         key: 'id',
       },
     },
@@ -66,7 +66,7 @@ Complaint.init(
     },
   },
   {
-    tableName: 'complaints',
+    tableName: 'hms_complaints',
     sequelize,
     timestamps: true,
     underscored: true,

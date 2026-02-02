@@ -106,7 +106,7 @@ Appointment.init(
   {
     sequelize,
     modelName: "Appointment",
-    tableName: "appointments",
+    tableName: "hms_appointments",
     timestamps: true,
     createdAt: "created_at",
     updatedAt: "updated_at",

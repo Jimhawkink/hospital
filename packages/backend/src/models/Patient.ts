@@ -138,7 +138,7 @@ Patient.init(
   },
   {
     sequelize,
-    tableName: "Patients",
+    tableName: "hms_patients",
     timestamps: true,
   }
 );

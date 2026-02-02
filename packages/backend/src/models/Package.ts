@@ -21,7 +21,7 @@ Package.init(
   },
   {
     sequelize,
-    tableName: "packages",
+    tableName: "hms_packages",
     timestamps: true,
   }
 );

@@ -57,7 +57,7 @@ Encounter.init(
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'patients',
+        model: 'hms_patients',
         key: 'id'
       }
     },
@@ -65,7 +65,7 @@ Encounter.init(
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'staff',
+        model: 'hms_staff',
         key: 'id'
       }
     },
@@ -82,7 +82,7 @@ Encounter.init(
   },
   {
     sequelize,
-    tableName: "encounters",
+    tableName: "hms_encounters",
     modelName: "Encounter",
     timestamps: true,
     indexes: [

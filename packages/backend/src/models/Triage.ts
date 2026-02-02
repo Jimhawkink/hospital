@@ -223,7 +223,7 @@ Triage.init(
   {
     sequelize,
     modelName: "Triage",
-    tableName: "triages",
+    tableName: "hms_triages",
     timestamps: true,
     indexes: [
       {

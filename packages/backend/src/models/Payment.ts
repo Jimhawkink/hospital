@@ -16,7 +16,7 @@ Payment.init({
     amount: DataTypes.DECIMAL(10, 2),
     method: DataTypes.ENUM("cash", "card", "mobile"),
     transaction_code: DataTypes.STRING
-}, { sequelize, tableName: "payments" });
+}, { sequelize, tableName: "hms_payments" });
 
 Payment.belongsTo(Invoice, { foreignKey: "invoice_id" });
 

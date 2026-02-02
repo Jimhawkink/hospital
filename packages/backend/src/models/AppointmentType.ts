@@ -48,7 +48,7 @@ AppointmentType.init(
     {
         sequelize,
         modelName: "AppointmentType",
-        tableName: "appointment_types",
+        tableName: "hms_appointment_types",
         timestamps: true,
         createdAt: "created_at",
         updatedAt: "updated_at",

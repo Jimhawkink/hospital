@@ -71,7 +71,7 @@ OrganisationSetting.init(
   {
     sequelize,
     modelName: 'OrganisationSetting',
-    tableName: 'organisation_settings',
+    tableName: 'hms_organisation_settings',
     timestamps: true,
   }
 );

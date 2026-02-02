@@ -31,7 +31,7 @@ RolePermission.init(
             type: DataTypes.INTEGER,
             allowNull: false,
             references: {
-                model: "user_roles",
+                model: "hms_user_roles",
                 key: "id",
             },
         },
@@ -39,7 +39,7 @@ RolePermission.init(
             type: DataTypes.INTEGER,
             allowNull: false,
             references: {
-                model: "permissions",
+                model: "hms_permissions",
                 key: "id",
             },
         },
@@ -62,7 +62,7 @@ RolePermission.init(
     },
     {
         sequelize,
-        tableName: "role_permissions",
+        tableName: "hms_role_permissions",
         modelName: "RolePermission",
         timestamps: true,
         indexes: [

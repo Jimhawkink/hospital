@@ -30,7 +30,7 @@ Stock.init(
   },
   {
     sequelize,
-    tableName: "stocks",
+    tableName: "hms_stock",
     timestamps: true,
   }
 );

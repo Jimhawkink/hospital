@@ -8,7 +8,7 @@
 -- =========================================
 -- 📅 APPOINTMENT TYPES TABLE
 -- =========================================
-CREATE TABLE IF NOT EXISTS appointment_types (
+CREATE TABLE IF NOT EXISTS hms_appointment_types (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
     description VARCHAR(500),
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS appointment_types (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT INTO appointment_types (name, description, emoji, color, default_duration_minutes, sort_order) VALUES
+INSERT INTO hms_appointment_types (name, description, emoji, color, default_duration_minutes, sort_order) VALUES
     ('Family planning follow-up', 'Follow-up for family planning services', '👨‍👩‍👧', '#EC4899', 30, 1),
     ('Antenatal follow-up', 'Prenatal care follow-up visit', '🤰', '#F59E0B', 45, 2),
     ('Child wellness follow-up', 'Pediatric wellness check', '👶', '#22C55E', 30, 3),
@@ -39,11 +39,11 @@ INSERT INTO appointment_types (name, description, emoji, color, default_duration
     ('General consultation', 'General medical consultation', '👨‍⚕️', '#64748B', 30, 15)
 ON CONFLICT (name) DO NOTHING;
 
-CREATE TABLE IF NOT EXISTS appointments (
+CREATE TABLE IF NOT EXISTS hms_appointments (
     id SERIAL PRIMARY KEY,
-    patient_id INTEGER NOT NULL REFERENCES "Patients"(id) ON DELETE CASCADE,
-    provider_id INTEGER REFERENCES staff(id) ON DELETE SET NULL,
-    appointment_type_id INTEGER REFERENCES appointment_types(id) ON DELETE SET NULL,
+    patient_id INTEGER NOT NULL REFERENCES hms_patients(id) ON DELETE CASCADE,
+    provider_id INTEGER REFERENCES hms_staff(id) ON DELETE SET NULL,
+    appointment_type_id INTEGER REFERENCES hms_appointment_types(id) ON DELETE SET NULL,
     appointment_type_custom VARCHAR(200),
     
     appointment_date DATE NOT NULL,
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS appointments (
     reminder_sent_at TIMESTAMP WITH TIME ZONE,
     reminder_days_before INT DEFAULT 1,
     
-    booked_by INTEGER REFERENCES staff(id) ON DELETE SET NULL,
+    booked_by INTEGER REFERENCES hms_staff(id) ON DELETE SET NULL,
     booking_source VARCHAR(50) DEFAULT 'Walk-in',
     
     original_appointment_id INTEGER,
@@ -69,16 +69,16 @@ CREATE TABLE IF NOT EXISTS appointments (
     reschedule_reason VARCHAR(500),
     
     cancelled_at TIMESTAMP WITH TIME ZONE,
-    cancelled_by INTEGER REFERENCES staff(id) ON DELETE SET NULL,
+    cancelled_by INTEGER REFERENCES hms_staff(id) ON DELETE SET NULL,
     cancellation_reason VARCHAR(500),
     
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS appointment_slots (
+CREATE TABLE IF NOT EXISTS hms_appointment_slots (
     id SERIAL PRIMARY KEY,
-    provider_id INTEGER NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
+    provider_id INTEGER NOT NULL REFERENCES hms_staff(id) ON DELETE CASCADE,
     day_of_week VARCHAR(20) NOT NULL,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS appointment_slots (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE OR REPLACE VIEW vw_appointments_detailed AS
+CREATE OR REPLACE VIEW hms_vw_appointments_detailed AS
 SELECT 
     a.id,
     a.patient_id,
@@ -119,8 +119,8 @@ SELECT
     a.reschedule_count,
     a.created_at,
     a.updated_at
-FROM appointments a
-LEFT JOIN "Patients" p ON a.patient_id = p.id
-LEFT JOIN staff s ON a.provider_id = s.id
-LEFT JOIN staff sb ON a.booked_by = sb.id
-LEFT JOIN appointment_types at ON a.appointment_type_id = at.id;
+FROM hms_appointments a
+LEFT JOIN hms_patients p ON a.patient_id = p.id
+LEFT JOIN hms_staff s ON a.provider_id = s.id
+LEFT JOIN hms_staff sb ON a.booked_by = sb.id
+LEFT JOIN hms_appointment_types at ON a.appointment_type_id = at.id;

@@ -107,7 +107,7 @@ Staff.init(
   },
   {
     sequelize,
-    tableName: "staff",
+    tableName: "hms_staff",
     modelName: "Staff",
     timestamps: true,
   }

@@ -65,7 +65,7 @@ Permission.init(
     },
     {
         sequelize,
-        tableName: "permissions",
+        tableName: "hms_permissions",
         modelName: "Permission",
         timestamps: true,
     }

@@ -3,7 +3,7 @@
 -- =============================================
 
 -- Table: user_roles
-CREATE TABLE IF NOT EXISTS user_roles (
+CREATE TABLE IF NOT EXISTS hms_user_roles (
     id SERIAL PRIMARY KEY,
     role_name VARCHAR(100) NOT NULL UNIQUE,
     description VARCHAR(255),
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS user_roles (
 );
 
 -- Table: permissions
-CREATE TABLE IF NOT EXISTS permissions (
+CREATE TABLE IF NOT EXISTS hms_permissions (
     id SERIAL PRIMARY KEY,
     permission_name VARCHAR(150) NOT NULL UNIQUE,
     permission_key VARCHAR(100) NOT NULL UNIQUE,
@@ -30,10 +30,10 @@ CREATE TABLE IF NOT EXISTS permissions (
 );
 
 -- Table: role_permissions
-CREATE TABLE IF NOT EXISTS role_permissions (
+CREATE TABLE IF NOT EXISTS hms_role_permissions (
     id SERIAL PRIMARY KEY,
-    role_id INTEGER NOT NULL REFERENCES user_roles(id) ON DELETE CASCADE,
-    permission_id INTEGER NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+    role_id INTEGER NOT NULL REFERENCES hms_user_roles(id) ON DELETE CASCADE,
+    permission_id INTEGER NOT NULL REFERENCES hms_permissions(id) ON DELETE CASCADE,
     can_create BOOLEAN DEFAULT FALSE,
     can_edit BOOLEAN DEFAULT FALSE,
     can_view BOOLEAN DEFAULT FALSE,
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS role_permissions (
 -- =============================================
 -- INSERT DEFAULT USER ROLES
 -- =============================================
-INSERT INTO user_roles (role_name, description) VALUES 
+INSERT INTO hms_user_roles (role_name, description) VALUES 
 ('Administrator', 'Full system access'),
 ('Doctor', 'Medical practitioner with clinical access'),
 ('Nurse', 'Nursing staff with patient care access'),
@@ -60,7 +60,7 @@ ON CONFLICT (role_name) DO UPDATE SET description = EXCLUDED.description;
 -- =============================================
 -- INSERT DEFAULT PERMISSIONS
 -- =============================================
-INSERT INTO permissions (permission_name, permission_key, category, has_create, has_edit, has_view, has_archive, sort_order) VALUES 
+INSERT INTO hms_permissions (permission_name, permission_key, category, has_create, has_edit, has_view, has_archive, sort_order) VALUES 
 ('Appointments', 'appointments', 'Scheduling', TRUE, TRUE, TRUE, TRUE, 1),
 ('Billing', 'billing', 'Finance', TRUE, TRUE, TRUE, TRUE, 10),
 ('Billing - Price Override', 'billing_price_override', 'Finance', FALSE, TRUE, FALSE, FALSE, 11),
@@ -101,15 +101,15 @@ ON CONFLICT (permission_key) DO UPDATE SET category = EXCLUDED.category;
 -- =============================================
 -- GRANT ADMINISTRATOR FULL ACCESS
 -- =============================================
-INSERT INTO role_permissions (role_id, permission_id, can_create, can_edit, can_view, can_archive)
+INSERT INTO hms_role_permissions (role_id, permission_id, can_create, can_edit, can_view, can_archive)
 SELECT 
-    (SELECT id FROM user_roles WHERE role_name = 'Administrator'),
+    (SELECT id FROM hms_user_roles WHERE role_name = 'Administrator'),
     p.id,
     p.has_create,
     p.has_edit,
     p.has_view,
     p.has_archive
-FROM permissions p
+FROM hms_permissions p
 ON CONFLICT (role_id, permission_id) DO UPDATE SET 
     can_create = EXCLUDED.can_create, 
     can_edit = EXCLUDED.can_edit, 
@@ -119,15 +119,15 @@ ON CONFLICT (role_id, permission_id) DO UPDATE SET
 -- =============================================
 -- GRANT NURSE DEFAULT PERMISSIONS
 -- =============================================
-INSERT INTO role_permissions (role_id, permission_id, can_create, can_edit, can_view, can_archive)
+INSERT INTO hms_role_permissions (role_id, permission_id, can_create, can_edit, can_view, can_archive)
 SELECT 
-    (SELECT id FROM user_roles WHERE role_name = 'Nurse'),
+    (SELECT id FROM hms_user_roles WHERE role_name = 'Nurse'),
     p.id,
     CASE WHEN p.permission_key IN ('appointments', 'billing', 'complaints_hpi', 'diagnosis_plan', 'encounters', 'examination', 'investigation_requests', 'investigations_results', 'medication_history', 'patient_information', 'patient_medical_history', 'patient_tags', 'prescriptions', 'review_of_systems') THEN TRUE ELSE FALSE END,
     CASE WHEN p.permission_key IN ('appointments', 'billing', 'complaints_hpi', 'diagnosis_plan', 'diagnosis_referral', 'diagnosis_sick_note', 'encounters_close', 'examination', 'investigations_results', 'medication_history', 'patient_information', 'patient_medical_history', 'patient_tags', 'prescriptions', 'review_of_systems') THEN TRUE ELSE FALSE END,
     CASE WHEN p.permission_key IN ('appointments', 'billing', 'billing_view_totals', 'complaints_hpi', 'diagnosis_plan', 'encounters', 'examination', 'external_reports', 'internal_reports', 'investigations_imaging', 'investigations_laboratory', 'investigations_results', 'medication_history', 'patient_information', 'patient_medical_history', 'patient_tags', 'prescriptions', 'review_of_systems') THEN TRUE ELSE FALSE END,
     CASE WHEN p.permission_key IN ('diagnosis_plan', 'patient_tags') THEN TRUE ELSE FALSE END
-FROM permissions p
+FROM hms_permissions p
 ON CONFLICT (role_id, permission_id) DO UPDATE SET 
     can_create = EXCLUDED.can_create, 
     can_edit = EXCLUDED.can_edit, 

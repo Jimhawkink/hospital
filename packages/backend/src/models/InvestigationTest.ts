@@ -35,7 +35,7 @@ InvestigationTest.init({
   },
 }, {
   sequelize,
-  tableName: 'investigation_tests',
+  tableName: 'hms_investigation_tests',
   timestamps: true,
 });
 
