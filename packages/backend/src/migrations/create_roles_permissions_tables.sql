@@ -1,29 +1,21 @@
 -- =============================================
 -- ORGANISATION ROLES & PERMISSIONS TABLES
--- Run this script to create the necessary tables
 -- =============================================
 
--- Drop tables if they exist (for clean reinstall)
--- DROP TABLE IF EXISTS role_permissions;
--- DROP TABLE IF EXISTS permissions;
--- DROP TABLE IF EXISTS user_roles;
-
 -- Table: user_roles
--- Stores the available user roles in the system
 CREATE TABLE IF NOT EXISTS user_roles (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     role_name VARCHAR(100) NOT NULL UNIQUE,
     description VARCHAR(255),
     is_active BOOLEAN DEFAULT TRUE,
-    organisation_id INT NULL,
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    organisation_id INTEGER NULL,
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
 -- Table: permissions
--- Stores the list of all available permissions/modules
 CREATE TABLE IF NOT EXISTS permissions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     permission_name VARCHAR(150) NOT NULL UNIQUE,
     permission_key VARCHAR(100) NOT NULL UNIQUE,
     category VARCHAR(100),
@@ -33,26 +25,23 @@ CREATE TABLE IF NOT EXISTS permissions (
     has_view BOOLEAN DEFAULT TRUE,
     has_archive BOOLEAN DEFAULT TRUE,
     sort_order INT DEFAULT 0,
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
 -- Table: role_permissions
--- Junction table storing the permissions for each role
 CREATE TABLE IF NOT EXISTS role_permissions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    role_id INT NOT NULL,
-    permission_id INT NOT NULL,
+    id SERIAL PRIMARY KEY,
+    role_id INTEGER NOT NULL REFERENCES user_roles(id) ON DELETE CASCADE,
+    permission_id INTEGER NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
     can_create BOOLEAN DEFAULT FALSE,
     can_edit BOOLEAN DEFAULT FALSE,
     can_view BOOLEAN DEFAULT FALSE,
     can_archive BOOLEAN DEFAULT FALSE,
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (role_id) REFERENCES user_roles(id) ON DELETE CASCADE,
-    FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_role_permission (role_id, permission_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_role_permission UNIQUE (role_id, permission_id)
+);
 
 -- =============================================
 -- INSERT DEFAULT USER ROLES
@@ -66,7 +55,7 @@ INSERT INTO user_roles (role_name, description) VALUES
 ('Lab Technician', 'Laboratory and investigations access'),
 ('Accountant', 'Billing and financial access'),
 ('Cashier', 'POS and payment processing')
-ON DUPLICATE KEY UPDATE description = VALUES(description);
+ON CONFLICT (role_name) DO UPDATE SET description = EXCLUDED.description;
 
 -- =============================================
 -- INSERT DEFAULT PERMISSIONS
@@ -107,7 +96,7 @@ INSERT INTO permissions (permission_name, permission_key, category, has_create, 
 ('Prescriptions', 'prescriptions', 'Clinical', TRUE, TRUE, TRUE, TRUE, 130),
 ('Review of Systems', 'review_of_systems', 'Clinical', TRUE, TRUE, TRUE, TRUE, 140),
 ('Roles & Permissions', 'roles_permissions', 'Administration', TRUE, TRUE, TRUE, TRUE, 150)
-ON DUPLICATE KEY UPDATE category = VALUES(category);
+ON CONFLICT (permission_key) DO UPDATE SET category = EXCLUDED.category;
 
 -- =============================================
 -- GRANT ADMINISTRATOR FULL ACCESS
@@ -121,7 +110,11 @@ SELECT
     p.has_view,
     p.has_archive
 FROM permissions p
-ON DUPLICATE KEY UPDATE can_create = VALUES(can_create), can_edit = VALUES(can_edit), can_view = VALUES(can_view), can_archive = VALUES(can_archive);
+ON CONFLICT (role_id, permission_id) DO UPDATE SET 
+    can_create = EXCLUDED.can_create, 
+    can_edit = EXCLUDED.can_edit, 
+    can_view = EXCLUDED.can_view, 
+    can_archive = EXCLUDED.can_archive;
 
 -- =============================================
 -- GRANT NURSE DEFAULT PERMISSIONS
@@ -130,23 +123,13 @@ INSERT INTO role_permissions (role_id, permission_id, can_create, can_edit, can_
 SELECT 
     (SELECT id FROM user_roles WHERE role_name = 'Nurse'),
     p.id,
-    CASE 
-        WHEN p.permission_key IN ('appointments', 'billing', 'complaints_hpi', 'diagnosis_plan', 'encounters', 'examination', 'investigation_requests', 'investigations_results', 'medication_history', 'patient_information', 'patient_medical_history', 'patient_tags', 'prescriptions', 'review_of_systems') THEN TRUE
-        ELSE FALSE
-    END,
-    CASE 
-        WHEN p.permission_key IN ('appointments', 'billing', 'complaints_hpi', 'diagnosis_plan', 'diagnosis_referral', 'diagnosis_sick_note', 'encounters_close', 'examination', 'investigations_results', 'medication_history', 'patient_information', 'patient_medical_history', 'patient_tags', 'prescriptions', 'review_of_systems') THEN TRUE
-        ELSE FALSE
-    END,
-    CASE 
-        WHEN p.permission_key IN ('appointments', 'billing', 'billing_view_totals', 'complaints_hpi', 'diagnosis_plan', 'encounters', 'examination', 'external_reports', 'internal_reports', 'investigations_imaging', 'investigations_laboratory', 'investigations_results', 'medication_history', 'patient_information', 'patient_medical_history', 'patient_tags', 'prescriptions', 'review_of_systems') THEN TRUE
-        ELSE FALSE
-    END,
-    CASE 
-        WHEN p.permission_key IN ('diagnosis_plan', 'patient_tags') THEN TRUE
-        ELSE FALSE
-    END
+    CASE WHEN p.permission_key IN ('appointments', 'billing', 'complaints_hpi', 'diagnosis_plan', 'encounters', 'examination', 'investigation_requests', 'investigations_results', 'medication_history', 'patient_information', 'patient_medical_history', 'patient_tags', 'prescriptions', 'review_of_systems') THEN TRUE ELSE FALSE END,
+    CASE WHEN p.permission_key IN ('appointments', 'billing', 'complaints_hpi', 'diagnosis_plan', 'diagnosis_referral', 'diagnosis_sick_note', 'encounters_close', 'examination', 'investigations_results', 'medication_history', 'patient_information', 'patient_medical_history', 'patient_tags', 'prescriptions', 'review_of_systems') THEN TRUE ELSE FALSE END,
+    CASE WHEN p.permission_key IN ('appointments', 'billing', 'billing_view_totals', 'complaints_hpi', 'diagnosis_plan', 'encounters', 'examination', 'external_reports', 'internal_reports', 'investigations_imaging', 'investigations_laboratory', 'investigations_results', 'medication_history', 'patient_information', 'patient_medical_history', 'patient_tags', 'prescriptions', 'review_of_systems') THEN TRUE ELSE FALSE END,
+    CASE WHEN p.permission_key IN ('diagnosis_plan', 'patient_tags') THEN TRUE ELSE FALSE END
 FROM permissions p
-ON DUPLICATE KEY UPDATE can_create = VALUES(can_create), can_edit = VALUES(can_edit), can_view = VALUES(can_view), can_archive = VALUES(can_archive);
-
-SELECT 'Roles and Permissions tables created successfully!' AS Status;
+ON CONFLICT (role_id, permission_id) DO UPDATE SET 
+    can_create = EXCLUDED.can_create, 
+    can_edit = EXCLUDED.can_edit, 
+    can_view = EXCLUDED.can_view, 
+    can_archive = EXCLUDED.can_archive;

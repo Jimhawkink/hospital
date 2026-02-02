@@ -13,7 +13,7 @@ class InvestigationTest extends Model {
 
 InvestigationTest.init({
   id: {
-    type: DataTypes.INTEGER.UNSIGNED,
+    type: DataTypes.INTEGER,
     autoIncrement: true,
     primaryKey: true,
   },

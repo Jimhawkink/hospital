@@ -19,12 +19,12 @@ class InvestigationRequest extends Model {
 
 InvestigationRequest.init({
   id: {
-    type: DataTypes.INTEGER.UNSIGNED,
+    type: DataTypes.INTEGER,
     autoIncrement: true,
     primaryKey: true,
   },
   encounter_id: {
-    type: DataTypes.INTEGER.UNSIGNED,
+    type: DataTypes.INTEGER,
     allowNull: false,
   },
   test_name: {
@@ -48,7 +48,7 @@ InvestigationRequest.init({
     allowNull: true,
   },
   requested_by: {
-    type: DataTypes.INTEGER.UNSIGNED,
+    type: DataTypes.INTEGER,
     allowNull: false,
   },
   date_requested: {

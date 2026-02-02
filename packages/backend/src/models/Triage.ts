@@ -22,7 +22,7 @@ export interface TriageAttributes {
 }
 
 // Define optional attributes for creation
-interface TriageCreationAttributes extends Optional<TriageAttributes, 'id' | 'createdAt' | 'updatedAt'> {}
+interface TriageCreationAttributes extends Optional<TriageAttributes, 'id' | 'createdAt' | 'updatedAt'> { }
 
 // Define the Triage model class
 export class Triage extends Model<TriageAttributes, TriageCreationAttributes> implements TriageAttributes {
@@ -50,12 +50,12 @@ export class Triage extends Model<TriageAttributes, TriageCreationAttributes> im
 Triage.init(
   {
     id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+      type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
     },
     patient_id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+      type: DataTypes.INTEGER,
       allowNull: false,
       validate: {
         notEmpty: {

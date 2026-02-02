@@ -20,12 +20,12 @@ class InvestigationResult extends Model {
 
 InvestigationResult.init({
   id: {
-    type: DataTypes.INTEGER.UNSIGNED,
+    type: DataTypes.INTEGER,
     autoIncrement: true,
     primaryKey: true,
   },
   request_id: {
-    type: DataTypes.INTEGER.UNSIGNED,
+    type: DataTypes.INTEGER,
     allowNull: false,
   },
   parameter: {
@@ -53,7 +53,7 @@ InvestigationResult.init({
     allowNull: true,
   },
   entered_by: {
-    type: DataTypes.INTEGER.UNSIGNED,
+    type: DataTypes.INTEGER,
     allowNull: false,
   },
   date_entered: {

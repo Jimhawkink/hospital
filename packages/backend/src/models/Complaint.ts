@@ -28,12 +28,12 @@ class Complaint extends Model<ComplaintAttributes, ComplaintCreationAttributes> 
 Complaint.init(
   {
     id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+      type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
     },
     encounter_id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+      type: DataTypes.INTEGER,
       allowNull: false,
       references: {
         model: 'encounters',

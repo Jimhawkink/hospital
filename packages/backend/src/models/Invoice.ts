@@ -11,8 +11,8 @@ export class Invoice extends Model<InferAttributes<Invoice>, InferCreationAttrib
 }
 
 Invoice.init({
-    id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
-    patient_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    patient_id: { type: DataTypes.INTEGER, allowNull: false },
     invoice_number: DataTypes.STRING,
     amount: DataTypes.DECIMAL(10, 2),
     status: { type: DataTypes.ENUM("unpaid", "partially_paid", "paid", "cancelled"), defaultValue: "unpaid" }

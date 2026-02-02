@@ -1,5 +1,5 @@
 import { DataTypes, Model, Optional } from "sequelize";
-import {sequelize} from "../config/db";
+import { sequelize } from "../config/db";
 
 interface PatientAttributes {
   id: number;
@@ -25,7 +25,7 @@ interface PatientAttributes {
   updatedAt: Date;
 }
 
-interface PatientCreationAttributes extends Optional<PatientAttributes, "id" | "createdAt" | "updatedAt"> {}
+interface PatientCreationAttributes extends Optional<PatientAttributes, "id" | "createdAt" | "updatedAt"> { }
 
 class Patient extends Model<PatientAttributes, PatientCreationAttributes>
   implements PatientAttributes {
@@ -55,7 +55,7 @@ class Patient extends Model<PatientAttributes, PatientCreationAttributes>
 Patient.init(
   {
     id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+      type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
     },

@@ -32,7 +32,7 @@ export class Encounter extends Model<EncounterAttributes, EncounterCreationAttri
 Encounter.init(
   {
     id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+      type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true
     },
@@ -54,7 +54,7 @@ Encounter.init(
       allowNull: true
     },
     patient_id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+      type: DataTypes.INTEGER,
       allowNull: false,
       references: {
         model: 'patients',
@@ -62,7 +62,7 @@ Encounter.init(
       }
     },
     provider_id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+      type: DataTypes.INTEGER,
       allowNull: false,
       references: {
         model: 'staff',

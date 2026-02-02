@@ -25,7 +25,7 @@ class OrganisationSetting extends Model {
 OrganisationSetting.init(
   {
     id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+      type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
     },
@@ -50,7 +50,7 @@ OrganisationSetting.init(
       allowNull: true,
     },
     payment_method_id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+      type: DataTypes.INTEGER,
       allowNull: true,
     },
     country: {
