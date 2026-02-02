@@ -1,0 +1,398 @@
+/* Modern Staff Management Styles */
+
+.staff-management-container {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    color: #2d3748;
+    padding: 20px;
+}
+
+.staff-header {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    padding: 30px;
+    margin-bottom: 30px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.staff-header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.staff-logo-section {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.staff-logo {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: bold;
+    color: white;
+    box-shadow: 0 10px 30px rgba(255, 107, 107, 0.3);
+}
+
+.staff-title {
+    font-size: 32px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0;
+}
+
+.staff-subtitle {
+    color: #718096;
+    font-size: 14px;
+    margin-top: 5px;
+    margin-bottom: 0;
+}
+
+.staff-add-btn {
+    background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
+    color: white;
+    border: none;
+    padding: 15px 25px;
+    border-radius: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 30px rgba(255, 107, 107, 0.3);
+    font-size: 16px;
+}
+
+.staff-add-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 15px 40px rgba(255, 107, 107, 0.4);
+}
+
+.staff-search-section {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    padding: 25px;
+    margin-bottom: 30px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.staff-search-input {
+    width: 100%;
+    padding: 18px 25px;
+    border: 2px solid rgba(102, 126, 234, 0.1);
+    border-radius: 15px;
+    font-size: 16px;
+    background: rgba(102, 126, 234, 0.05);
+    transition: all 0.3s ease;
+    outline: none;
+}
+
+.staff-search-input:focus {
+    border-color: rgba(102, 126, 234, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.15);
+}
+
+.staff-cards-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.staff-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 25px;
+}
+
+.staff-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-radius: 25px;
+    padding: 30px;
+    transition: all 0.4s ease;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+    position: relative;
+    overflow: hidden;
+}
+
+.staff-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #ff6b6b, #4ecdc4, #667eea);
+    transition: height 0.3s ease;
+}
+
+.staff-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+}
+
+.staff-card:hover::before {
+    height: 6px;
+}
+
+.staff-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 25px;
+}
+
+.staff-avatar {
+    position: relative;
+}
+
+.staff-avatar-circle {
+    width: 70px;
+    height: 70px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: bold;
+    color: white;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+}
+
+.staff-status-dot {
+    position: absolute;
+    bottom: -5px;
+    right: -5px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 3px solid white;
+}
+
+.staff-status-active { 
+    background: #48bb78; 
+}
+
+.staff-status-inactive { 
+    background: #cbd5e0; 
+}
+
+.staff-member-info h3 {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: #2d3748;
+}
+
+.staff-member-role {
+    color: #667eea;
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+.staff-member-job {
+    color: #718096;
+    font-size: 14px;
+    margin: 0;
+}
+
+.staff-card-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 20px 0;
+    padding: 15px;
+    background: rgba(102, 126, 234, 0.05);
+    border-radius: 12px;
+    font-size: 12px;
+    color: #718096;
+}
+
+.staff-card-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 25px;
+}
+
+.staff-status-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.staff-action-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.staff-action-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    font-size: 16px;
+}
+
+.staff-edit-btn {
+    background: rgba(102, 126, 234, 0.1);
+    color: #667eea;
+}
+
+.staff-delete-btn {
+    background: rgba(255, 107, 107, 0.1);
+    color: #ff6b6b;
+}
+
+.staff-action-btn:hover {
+    transform: scale(1.1);
+}
+
+.staff-empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-radius: 25px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+}
+
+.staff-empty-icon {
+    width: 100px;
+    height: 100px;
+    background: linear-gradient(135deg, #e2e8f0, #cbd5e0);
+    border-radius: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 30px;
+    font-size: 40px;
+    color: #a0aec0;
+}
+
+.staff-empty-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 15px;
+}
+
+.staff-empty-text {
+    color: #718096;
+    margin-bottom: 30px;
+    font-size: 16px;
+}
+
+.staff-floating-btn {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
+    border: none;
+    border-radius: 50%;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 15px 40px rgba(255, 107, 107, 0.4);
+    transition: all 0.3s ease;
+    z-index: 1000;
+    display: none;
+}
+
+.staff-floating-btn:hover {
+    transform: scale(1.1) rotate(90deg);
+}
+
+.staff-results-text {
+    text-align: center;
+    margin-top: 30px;
+    color: #718096;
+    font-size: 14px;
+}
+
+@media (max-width: 768px) {
+    .staff-cards-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .staff-header-content {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .staff-add-btn {
+        width: 100%;
+        justify-content: center;
+        display: none; /* Hide main button on mobile */
+    }
+    
+    .staff-floating-btn {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .staff-management-container {
+        padding: 10px;
+    }
+
+    .staff-header, 
+    .staff-search-section,
+    .staff-cards-container {
+        margin-left: 10px;
+        margin-right: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .staff-cards-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    .staff-card {
+        padding: 20px;
+    }
+
+    .staff-title {
+        font-size: 24px;
+    }
+
+    .staff-logo {
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+    }
+}
