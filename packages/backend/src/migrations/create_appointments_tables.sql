@@ -1,27 +1,27 @@
 -- =============================================
 -- Appointments Tables Migration Script
 -- HMS - Hospital Management System
--- Created: 2025-12-24
--- Database: MySQL
+-- Created: 2026-02-02
+-- Database: PostgreSQL (Supabase)
 -- =============================================
 
 -- =========================================
 -- 📅 APPOINTMENT TYPES TABLE
 -- =========================================
 CREATE TABLE IF NOT EXISTS appointment_types (
-    id INT PRIMARY KEY AUTO_INCREMENT,
+    id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
     description VARCHAR(500),
     emoji VARCHAR(10) DEFAULT '📅',
     color VARCHAR(20) DEFAULT '#3B82F6',
     default_duration_minutes INT DEFAULT 30,
-    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     sort_order INT DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
-INSERT IGNORE INTO appointment_types (name, description, emoji, color, default_duration_minutes, sort_order) VALUES
+INSERT INTO appointment_types (name, description, emoji, color, default_duration_minutes, sort_order) VALUES
     ('Family planning follow-up', 'Follow-up for family planning services', '👨‍👩‍👧', '#EC4899', 30, 1),
     ('Antenatal follow-up', 'Prenatal care follow-up visit', '🤰', '#F59E0B', 45, 2),
     ('Child wellness follow-up', 'Pediatric wellness check', '👶', '#22C55E', 30, 3),
@@ -36,14 +36,14 @@ INSERT IGNORE INTO appointment_types (name, description, emoji, color, default_d
     ('Eye examination', 'Vision and eye health check', '👁️', '#0EA5E9', 30, 12),
     ('Mental health consultation', 'Psychiatric/psychological consultation', '🧠', '#A855F7', 60, 13),
     ('Physiotherapy session', 'Physical therapy appointment', '🏃', '#10B981', 45, 14),
-    ('General consultation', 'General medical consultation', '👨‍⚕️', '#64748B', 30, 15);
-
+    ('General consultation', 'General medical consultation', '👨‍⚕️', '#64748B', 30, 15)
+ON CONFLICT (name) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS appointments (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    patient_id INT NOT NULL,
-    provider_id INT,
-    appointment_type_id INT,
+    id SERIAL PRIMARY KEY,
+    patient_id INTEGER NOT NULL REFERENCES "Patients"(id) ON DELETE CASCADE,
+    provider_id INTEGER REFERENCES staff(id) ON DELETE SET NULL,
+    appointment_type_id INTEGER REFERENCES appointment_types(id) ON DELETE SET NULL,
     appointment_type_custom VARCHAR(200),
     
     appointment_date DATE NOT NULL,
@@ -51,61 +51,56 @@ CREATE TABLE IF NOT EXISTS appointments (
     end_time TIME,
     duration_minutes INT DEFAULT 30,
     
-    
-    status ENUM('Scheduled', 'Confirmed', 'Checked-in', 'In-progress', 'Completed', 'Cancelled', 'No-show', 'Rescheduled') NOT NULL DEFAULT 'Scheduled',
+    status VARCHAR(50) NOT NULL DEFAULT 'Scheduled',
     
     notes TEXT,
     reason_for_visit VARCHAR(500),
     
-    reminder_type ENUM('None', 'SMS', 'Email', 'Both') DEFAULT 'SMS',
-    reminder_sent TINYINT(1) DEFAULT 0,
-    reminder_sent_at DATETIME,
+    reminder_type VARCHAR(20) DEFAULT 'SMS',
+    reminder_sent BOOLEAN DEFAULT FALSE,
+    reminder_sent_at TIMESTAMP WITH TIME ZONE,
     reminder_days_before INT DEFAULT 1,
     
+    booked_by INTEGER REFERENCES staff(id) ON DELETE SET NULL,
+    booking_source VARCHAR(50) DEFAULT 'Walk-in',
     
-    booked_by INT,
-    booking_source ENUM('Walk-in', 'Phone', 'Online', 'App', 'Referral') DEFAULT 'Walk-in',
-    
-    original_appointment_id INT,
+    original_appointment_id INTEGER,
     reschedule_count INT DEFAULT 0,
     reschedule_reason VARCHAR(500),
     
-    
-    cancelled_at DATETIME,
-    cancelled_by INT,
+    cancelled_at TIMESTAMP WITH TIME ZONE,
+    cancelled_by INTEGER REFERENCES staff(id) ON DELETE SET NULL,
     cancellation_reason VARCHAR(500),
     
-   
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
 CREATE TABLE IF NOT EXISTS appointment_slots (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    provider_id INT NOT NULL,
-    day_of_week ENUM('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday') NOT NULL,
+    id SERIAL PRIMARY KEY,
+    provider_id INTEGER NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
+    day_of_week VARCHAR(20) NOT NULL,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
     slot_duration_minutes INT DEFAULT 30,
-    is_active TINYINT(1) DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
 CREATE OR REPLACE VIEW vw_appointments_detailed AS
 SELECT 
     a.id,
     a.patient_id,
-    CONCAT(p.first_name, ' ', IFNULL(CONCAT(p.middle_name, ' '), ''), p.last_name) AS patient_name,
+    CONCAT(p.first_name, ' ', COALESCE(p.middle_name || ' ', ''), p.last_name) AS patient_name,
     p.gender AS patient_gender,
     p.dob AS patient_dob,
     p.phone AS patient_phone,
-    TIMESTAMPDIFF(YEAR, p.dob, CURDATE()) AS patient_age,
+    EXTRACT(YEAR FROM AGE(CURRENT_DATE, p.dob)) AS patient_age,
     a.provider_id,
-    CONCAT(IFNULL(s.title, ''), ' ', s.firstName, ' ', s.lastName) AS provider_name,
+    CONCAT(COALESCE(s.title || ' ', ''), s."firstName", ' ', s."lastName") AS provider_name,
     a.appointment_type_id,
-    IFNULL(at.name, a.appointment_type_custom) AS appointment_type_name,
+    COALESCE(at.name, a.appointment_type_custom) AS appointment_type_name,
     at.emoji AS type_emoji,
     at.color AS type_color,
     a.appointment_date,
@@ -119,27 +114,13 @@ SELECT
     a.reminder_sent,
     a.reminder_days_before,
     a.booked_by,
-    CONCAT(IFNULL(sb.title, ''), ' ', sb.firstName, ' ', sb.lastName) AS booked_by_name,
+    CONCAT(COALESCE(sb.title || ' ', ''), sb."firstName", ' ', sb."lastName") AS booked_by_name,
     a.booking_source,
     a.reschedule_count,
     a.created_at,
     a.updated_at
 FROM appointments a
-LEFT JOIN Patients p ON a.patient_id = p.id
+LEFT JOIN "Patients" p ON a.patient_id = p.id
 LEFT JOIN staff s ON a.provider_id = s.id
 LEFT JOIN staff sb ON a.booked_by = sb.id
 LEFT JOIN appointment_types at ON a.appointment_type_id = at.id;
-
--- =========================================
--- 📊 SUMMARY
--- =========================================
--- Tables created:
---   1. appointment_types - Types of appointments with default durations
---   2. appointments - Main appointments table with full booking details
---   3. appointment_slots - Provider availability slots (optional)
---
--- Views created:
---   1. vw_appointments_detailed - Full appointment details with patient/provider info
---
--- NOTE: Foreign keys removed for flexibility. Ensure data integrity at application level.
--- =========================================
