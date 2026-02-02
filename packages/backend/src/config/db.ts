@@ -1,13 +1,19 @@
 import { Sequelize, Model, DataTypes } from 'sequelize';
 
 const sequelize = new Sequelize({
-  dialect: 'mysql',
+  dialect: 'postgres',
   host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '3306'),
-  database: process.env.DB_NAME || 'hospital_db',
-  username: process.env.DB_USER || 'root',
+  port: parseInt(process.env.DB_PORT || '5432'),
+  database: process.env.DB_NAME || 'postgres',
+  username: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || '',
-  logging: console.log, // Shows SQL queries in console
+  logging: console.log,
+  dialectOptions: process.env.NODE_ENV === 'production' ? {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false
+    }
+  } : {}
 });
 
 export class OrganisationSetting extends Model {
