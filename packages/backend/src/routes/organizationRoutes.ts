@@ -2,8 +2,7 @@ import { Router } from "express";
 import path from "path";
 import multer from "multer";
 import fs from "fs";
-import Organization from "../models/Organization";
-import OrganizationSetting from "../models/OrganizationSetting";
+import OrganisationSetting from "../models/OrganisationSetting";
 
 const router = Router();
 
@@ -28,7 +27,7 @@ const upload = multer({
 // GET current settings (single-row config, id=1)
 router.get("/settings", async (_req, res) => {
   try {
-    const row = await Organization.findByPk(1);
+    const row = await OrganisationSetting.findByPk(1);
     res.json(row ?? {});
   } catch (e) {
     console.error(e);
@@ -41,8 +40,8 @@ router.put("/settings", async (req, res) => {
   try {
     const payload = req.body ?? {};
     // guarantee single row
-    await Organization.upsert({ id: 1, ...payload });
-    const saved = await Organization.findByPk(1);
+    await OrganisationSetting.upsert({ id: 1, ...payload });
+    const saved = await OrganisationSetting.findByPk(1);
     res.json(saved);
   } catch (e) {
     console.error(e);

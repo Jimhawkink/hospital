@@ -6,6 +6,7 @@ class OrganisationSetting extends Model {
   public id!: number;
   public organisation_name!: string;
   public logo_url!: string;
+  public logo_path!: string | null;
   public email!: string;
   public phone!: string;
   public address!: string;
@@ -18,8 +19,8 @@ class OrganisationSetting extends Model {
   public sub_county!: string;
   public ward!: string;
 
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  public readonly created_at!: Date;
+  public readonly updated_at!: Date;
 }
 
 OrganisationSetting.init(
@@ -34,6 +35,10 @@ OrganisationSetting.init(
       allowNull: false,
     },
     logo_url: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    logo_path: {
       type: DataTypes.STRING,
       allowNull: true,
     },
