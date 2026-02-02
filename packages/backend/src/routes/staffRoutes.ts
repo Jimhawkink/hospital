@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
-import { Staff } from "../models/Staff";
-import { User } from "../models/User"; // Assuming User model is available
+import Staff from "../models/Staff";
+import User from "../models/User"; // Assuming User model is available
 import bcrypt from "bcryptjs";
 import { sendOtp, verifyOtp, isEmailRegistered, clearOtp } from "../otpService";
 

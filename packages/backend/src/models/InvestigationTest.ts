@@ -6,7 +6,7 @@ class InvestigationTest extends Model {
   public name!: string;
   public department!: string;
   public type!: 'laboratory' | 'imaging';
-  public parameters!: string | null; // JSON string of array [{parameter: string, unit: string, range: string}]
+  public parameters!: string | null;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 }
@@ -20,7 +20,6 @@ InvestigationTest.init({
   name: {
     type: DataTypes.STRING,
     allowNull: false,
-    unique: true, // This ensures test names are unique
   },
   department: {
     type: DataTypes.STRING,
@@ -31,7 +30,7 @@ InvestigationTest.init({
     allowNull: false,
   },
   parameters: {
-    type: DataTypes.TEXT, // JSON.stringify([{parameter: 'Hb', unit: 'g/dL', range: '12-18'}, ...])
+    type: DataTypes.TEXT,
     allowNull: true,
   },
 }, {
@@ -41,3 +40,4 @@ InvestigationTest.init({
 });
 
 export { InvestigationTest };
+export default InvestigationTest;

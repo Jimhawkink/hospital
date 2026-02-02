@@ -1,6 +1,6 @@
 import { DataTypes, Model } from "sequelize";
 import { sequelize } from "../config/db";
-import { PaymentMethod } from "./PaymentMethod"; // ✅ corrected import
+import PaymentMethod from "./PaymentMethod";
 
 class OrganisationSetting extends Model {
   public id!: number;
@@ -53,8 +53,6 @@ OrganisationSetting.init(
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: true,
     },
-
-    // ✅ Location fields
     country: {
       type: DataTypes.STRING,
       allowNull: true,
@@ -87,10 +85,10 @@ OrganisationSetting.init(
   }
 );
 
-// ✅ Association with PaymentMethod
 OrganisationSetting.belongsTo(PaymentMethod, {
   foreignKey: "payment_method_id",
   as: "paymentMethod",
 });
 
 export { OrganisationSetting };
+export default OrganisationSetting;

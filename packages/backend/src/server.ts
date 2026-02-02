@@ -28,13 +28,13 @@ console.log("------------------------------------");
 // -----------------------------
 
 // Import models (preserve your default / named exports)
-import { User } from "./models/User";
+import User from "./models/User";
 import Patient from "./models/Patient";
-import { Appointment } from "./models/Appointment";
-import { OrganisationSetting } from "./models/OrganisationSetting";
-import { PaymentMethod } from "./models/PaymentMethod";
-import { Product } from "./models/Product";
-import { Staff } from "./models/Staff";
+import Appointment from "./models/Appointment";
+import OrganisationSetting from "./models/OrganisationSetting";
+import PaymentMethod from "./models/PaymentMethod";
+import Product from "./models/Product";
+import Staff from "./models/Staff";
 import { Triage } from "./models/Triage";
 import { Encounter } from "./models/Encounter";
 import Complaint from "./models/Complaint";

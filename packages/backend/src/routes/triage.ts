@@ -1,7 +1,7 @@
 // routes/triage.ts - Enhanced with proper error handling and debugging
 import express from "express";
-import { Triage } from "../models/Triage";
-import  Patient  from "../models/Patient";
+import Triage from "../models/Triage";
+import Patient from "../models/Patient";
 
 const router = express.Router();
 
@@ -108,7 +108,7 @@ router.post("/", async (req, res) => {
     const triage = await Triage.create(triageData);
 
     console.log(`✅ Triage record created successfully with ID: ${triage.id}`);
-    
+
     // Return the created record with patient info
     const createdTriage = await Triage.findByPk(triage.id, {
       include: [
@@ -128,7 +128,7 @@ router.post("/", async (req, res) => {
     console.error("❌ Error creating triage record:");
     console.error("Error name:", error.name);
     console.error("Error message:", error.message);
-    
+
     // Handle specific Sequelize errors
     if (error.name === 'SequelizeValidationError') {
       console.error("Validation errors:", error.errors);
@@ -206,7 +206,7 @@ router.get("/", async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const triageRecord = await Triage.findByPk(id, {
       include: [
         {
@@ -240,7 +240,7 @@ router.get("/:id", async (req, res) => {
 router.get("/patient/:patientId", async (req, res) => {
   try {
     const { patientId } = req.params;
-    
+
     const triageRecords = await Triage.findAll({
       where: { patient_id: patientId },
       include: [

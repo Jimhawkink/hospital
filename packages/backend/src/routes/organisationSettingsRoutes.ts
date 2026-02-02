@@ -2,7 +2,8 @@ import express from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { OrganisationSetting } from "../models/OrganisationSetting";
+import OrganisationSetting from "../models/OrganisationSetting";
+import PaymentMethod from "../models/PaymentMethod";
 
 const router = express.Router();
 

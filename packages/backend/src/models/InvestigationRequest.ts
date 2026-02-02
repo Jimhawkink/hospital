@@ -1,7 +1,7 @@
 import { DataTypes, Model } from 'sequelize';
 import { sequelize } from '../config/db';
 import Encounter from './Encounter';
-import {Staff} from './Staff';
+import Staff from "./Staff";
 
 class InvestigationRequest extends Model {
   public id!: number;
@@ -65,3 +65,4 @@ InvestigationRequest.belongsTo(Encounter, { foreignKey: 'encounter_id', onDelete
 InvestigationRequest.belongsTo(Staff, { foreignKey: 'requested_by' });
 
 export { InvestigationRequest };
+export default InvestigationRequest;

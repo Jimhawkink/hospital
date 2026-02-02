@@ -17,10 +17,9 @@ export interface OrganizationAttributes {
 
 type OrganizationCreation = Optional<OrganizationAttributes, "id">;
 
-export class Organization
+class Organization
   extends Model<OrganizationAttributes, OrganizationCreation>
-  implements OrganizationAttributes
-{
+  implements OrganizationAttributes {
   public id!: number;
   public organisation_name!: string | null;
   public country!: string | null;
@@ -49,8 +48,11 @@ Organization.init(
   },
   {
     sequelize,
-    tableName: "organisation_settings", // match DB exactly
+    tableName: "organisation_settings",
     modelName: "Organization",
     timestamps: true,
   }
 );
+
+export { Organization };
+export default Organization;

@@ -2,7 +2,8 @@ import { Router } from "express";
 import path from "path";
 import multer from "multer";
 import fs from "fs";
-import { Organization } from "../models/Organization";
+import Organization from "../models/Organization";
+import OrganizationSetting from "../models/OrganizationSetting";
 
 const router = Router();
 

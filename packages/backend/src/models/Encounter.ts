@@ -1,7 +1,7 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import { sequelize } from "../config/db";
 import Patient from "./Patient";
-import { Staff } from "./Staff";
+import Staff from "./Staff";
 
 interface EncounterAttributes {
   id: number;
@@ -31,38 +31,38 @@ export class Encounter extends Model<EncounterAttributes, EncounterCreationAttri
 
 Encounter.init(
   {
-    id: { 
-      type: DataTypes.INTEGER.UNSIGNED, 
-      autoIncrement: true, 
-      primaryKey: true 
+    id: {
+      type: DataTypes.INTEGER.UNSIGNED,
+      autoIncrement: true,
+      primaryKey: true
     },
-    encounter_number: { 
-      type: DataTypes.STRING, 
+    encounter_number: {
+      type: DataTypes.STRING,
       allowNull: false,
-      unique: true 
+      unique: true
     },
-    encounter_type: { 
-      type: DataTypes.STRING, 
-      allowNull: false 
+    encounter_type: {
+      type: DataTypes.STRING,
+      allowNull: false
     },
-    priority_type: { 
-      type: DataTypes.STRING, 
-      allowNull: false 
+    priority_type: {
+      type: DataTypes.STRING,
+      allowNull: false
     },
-    notes: { 
-      type: DataTypes.TEXT, 
-      allowNull: true 
+    notes: {
+      type: DataTypes.TEXT,
+      allowNull: true
     },
-    patient_id: { 
-      type: DataTypes.INTEGER.UNSIGNED, 
+    patient_id: {
+      type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
       references: {
         model: 'patients',
         key: 'id'
       }
     },
-    provider_id: { 
-      type: DataTypes.INTEGER.UNSIGNED, 
+    provider_id: {
+      type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
       references: {
         model: 'staff',
@@ -101,29 +101,29 @@ Encounter.init(
 );
 
 // Associations
-Encounter.belongsTo(Patient, { 
-  foreignKey: "patient_id", 
+Encounter.belongsTo(Patient, {
+  foreignKey: "patient_id",
   as: "patient",
   onDelete: 'RESTRICT',
   onUpdate: 'CASCADE'
 });
 
-Encounter.belongsTo(Staff, { 
-  foreignKey: "provider_id", 
+Encounter.belongsTo(Staff, {
+  foreignKey: "provider_id",
   as: "provider",
   onDelete: 'RESTRICT',
   onUpdate: 'CASCADE'
 });
 
-Patient.hasMany(Encounter, { 
-  foreignKey: "patient_id", 
+Patient.hasMany(Encounter, {
+  foreignKey: "patient_id",
   as: "encounters",
   onDelete: 'RESTRICT',
   onUpdate: 'CASCADE'
 });
 
-Staff.hasMany(Encounter, { 
-  foreignKey: "provider_id", 
+Staff.hasMany(Encounter, {
+  foreignKey: "provider_id",
   as: "encounters",
   onDelete: 'RESTRICT',
   onUpdate: 'CASCADE'

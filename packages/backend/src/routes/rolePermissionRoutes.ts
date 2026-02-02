@@ -1,8 +1,10 @@
 // routes/rolePermissionRoutes.ts
 import express, { Request, Response } from "express";
-import UserRole from "../models/UserRole";
+import Staff from "../models/Staff";
+import User from "../models/User";
 import Permission from "../models/Permission";
 import RolePermission from "../models/RolePermission";
+import UserRole from "../models/UserRole";
 
 const router = express.Router();
 

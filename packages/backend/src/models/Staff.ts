@@ -34,8 +34,7 @@ export type StaffCreationAttributes = Optional<
 // ======================
 class Staff
   extends Model<StaffAttributes, StaffCreationAttributes>
-  implements StaffAttributes
-{
+  implements StaffAttributes {
   public id!: number;
   public title!: string;
   public firstName!: string;
@@ -114,4 +113,4 @@ Staff.init(
   }
 );
 
-export { Staff };
+export default Staff;

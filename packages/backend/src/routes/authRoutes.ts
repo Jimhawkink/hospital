@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { User } from "../models/index";
+import User from "../models/User";
+import Staff from "../models/Staff";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 const router = Router();

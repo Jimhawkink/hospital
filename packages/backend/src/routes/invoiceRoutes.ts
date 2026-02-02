@@ -1,5 +1,7 @@
 import { Router } from "express";
-import { Invoice, Payment, Patient } from "../models/index";
+import Invoice from "../models/Invoice";
+import Payment from "../models/Payment";
+import Patient from "../models/Patient";
 import { authenticate } from "../middleware/auth";
 
 const router = Router();

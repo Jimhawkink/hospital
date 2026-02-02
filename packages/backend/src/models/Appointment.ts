@@ -36,7 +36,7 @@ export type AppointmentCreationAttributes = Optional<
   "id" | "provider_id" | "appointment_type_id" | "status" | "created_at" | "updated_at"
 >;
 
-export class Appointment extends Model<AppointmentAttributes, AppointmentCreationAttributes> implements AppointmentAttributes {
+class Appointment extends Model<AppointmentAttributes, AppointmentCreationAttributes> implements AppointmentAttributes {
   public id!: number;
   public patient_id!: number;
   public provider_id?: number | null;
@@ -112,3 +112,6 @@ Appointment.init(
     updatedAt: "updated_at",
   }
 );
+
+export { Appointment };
+export default Appointment;

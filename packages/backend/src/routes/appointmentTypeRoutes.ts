@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { AppointmentType } from "../models/AppointmentType";
+import AppointmentType from "../models/AppointmentType";
 import { authenticate } from "../middleware/auth";
 
 const router = Router();

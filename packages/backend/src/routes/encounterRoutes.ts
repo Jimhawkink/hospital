@@ -1,6 +1,7 @@
 import { Router } from "express";
 import Patient from "../models/Patient"; // Fixed: Use default import
-import { Encounter } from "../models/Encounter"; // Fixed: Use named import for Encounter
+import Encounter from "../models/Encounter";
+import Staff from "../models/Staff";
 import { sequelize } from "../config/db";
 import { Op } from "sequelize";
 
@@ -100,7 +101,7 @@ router.get("/search", async (req, res) => {
 // ✅ Get encounters by date range
 router.get("/date-range", async (req, res) => {
   const { startDate, endDate } = req.query;
-  
+
   if (!startDate || !endDate) {
     return res.status(400).json({ error: "Both startDate and endDate are required" });
   }
@@ -140,11 +141,11 @@ router.get("/:id", async (req, res) => {
         },
       ],
     });
-    
+
     if (!encounter) {
       return res.status(404).json({ error: "Encounter not found" });
     }
-    
+
     res.json(encounter);
   } catch (err) {
     console.error("Error fetching encounter:", err);
@@ -174,7 +175,7 @@ router.post("/", async (req, res) => {
     }
 
     const encounter = await Encounter.create(encounterData);
-    
+
     // Return encounter with patient info
     const encounterWithPatient = await Encounter.findByPk(encounter.id, {
       include: [
@@ -185,7 +186,7 @@ router.post("/", async (req, res) => {
         },
       ],
     });
-    
+
     res.status(201).json(encounterWithPatient);
   } catch (err) {
     console.error("Error creating encounter:", err);
@@ -218,7 +219,7 @@ router.put("/:id", async (req, res) => {
     }
 
     await encounter.update(updateData);
-    
+
     // Return updated encounter with patient info
     const updatedEncounter = await Encounter.findByPk(encounter.id, {
       include: [
@@ -229,7 +230,7 @@ router.put("/:id", async (req, res) => {
         },
       ],
     });
-    
+
     res.json(updatedEncounter);
   } catch (err) {
     console.error("Error updating encounter:", err);

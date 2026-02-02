@@ -12,7 +12,7 @@ interface ComplaintAttributes {
   updated_at?: Date;
 }
 
-interface ComplaintCreationAttributes extends Optional<ComplaintAttributes, 'id' | 'duration_value' | 'duration_unit' | 'comments' | 'created_at' | 'updated_at'> {}
+interface ComplaintCreationAttributes extends Optional<ComplaintAttributes, 'id' | 'duration_value' | 'duration_unit' | 'comments' | 'created_at' | 'updated_at'> { }
 
 class Complaint extends Model<ComplaintAttributes, ComplaintCreationAttributes> implements ComplaintAttributes {
   public id!: number;
@@ -73,4 +73,5 @@ Complaint.init(
   }
 );
 
+export { Complaint };
 export default Complaint;

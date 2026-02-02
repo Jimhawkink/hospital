@@ -1,12 +1,12 @@
 import { DataTypes, Model } from 'sequelize';
 import { sequelize } from '../config/db';
-import {InvestigationRequest} from './InvestigationRequest';
-import {Staff} from './Staff';
+import InvestigationRequest from './InvestigationRequest';
+import Staff from "./Staff";
 
 class InvestigationResult extends Model {
   public id!: number;
   public request_id!: number;
-  public parameter!: string | null; // Null for single-result tests
+  public parameter!: string | null;
   public value!: string;
   public unit!: string | null;
   public reference_range!: string | null;
@@ -70,3 +70,4 @@ InvestigationResult.belongsTo(InvestigationRequest, { foreignKey: 'request_id', 
 InvestigationResult.belongsTo(Staff, { foreignKey: 'entered_by' });
 
 export { InvestigationResult };
+export default InvestigationResult;

@@ -26,4 +26,5 @@ Package.init(
   }
 );
 
+export { Package };
 export default Package;

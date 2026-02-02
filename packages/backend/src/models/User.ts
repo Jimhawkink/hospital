@@ -23,7 +23,7 @@ User.init(
     email: {
       type: DataTypes.STRING,
       allowNull: false,
-      unique: true, // ✅ one unique index on email
+      unique: true,
     },
     password: {
       type: DataTypes.STRING,
@@ -42,8 +42,10 @@ User.init(
       {
         unique: true,
         fields: ["email"],
-        name: "unique_email_index", // ✅ fixed name, prevents duplicates
+        name: "unique_email_index",
       },
     ],
   }
 );
+
+export default User;

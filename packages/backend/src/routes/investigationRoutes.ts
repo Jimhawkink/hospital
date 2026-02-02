@@ -1,10 +1,10 @@
 // src/routes/investigationRoutes.ts
 import { Router } from "express";
-import { InvestigationRequest } from "../models/InvestigationRequest";
-import { InvestigationResult } from "../models/InvestigationResult";
-import { InvestigationTest } from "../models/InvestigationTest";
-import { Staff } from "../models/Staff";
-import { Encounter } from "../models/Encounter";
+import InvestigationRequest from "../models/InvestigationRequest";
+import InvestigationResult from "../models/InvestigationResult";
+import InvestigationTest from "../models/InvestigationTest";
+import Staff from "../models/Staff";
+import Encounter from "../models/Encounter";
 
 const router = Router();
 
@@ -117,7 +117,7 @@ router.post("/", async (req, res) => {
 
   } catch (error: any) {
     console.error('❌ Error creating investigation requests:', error);
-    try { await sequelizeInstance.transaction.rollback(); } catch {}
+    try { await sequelizeInstance.transaction.rollback(); } catch { }
     if (error?.status && error?.message) return res.status(error.status).json({ success: false, error: error.message });
     if (error?.name === "SequelizeForeignKeyConstraintError") return res.status(400).json({ success: false, error: 'Foreign key constraint failed', details: error?.original?.sqlMessage || error.message });
     if (error?.name === "SequelizeValidationError") {

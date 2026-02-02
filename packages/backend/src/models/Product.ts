@@ -1,6 +1,6 @@
 // src/models/Product.ts
 import { DataTypes, Model } from "sequelize";
-import {sequelize} from "../config/db"; // Changed from ../config/database to ../config/db
+import { sequelize } from "../config/db"; // Changed from ../config/database to ../config/db
 
 class Product extends Model {
   public id!: string; // Use string for UUID
@@ -105,5 +105,5 @@ Product.init(
   }
 );
 
-export { Product };
+export default Product;
 

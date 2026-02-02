@@ -1,6 +1,6 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import { sequelize } from "../config/db";
-import { PaymentMethod } from "./PaymentMethod"; // NEW import
+import PaymentMethod from "./PaymentMethod";
 
 export interface OrganizationAttributes {
   id: number;
@@ -18,10 +18,9 @@ export interface OrganizationAttributes {
 
 type OrganizationCreation = Optional<OrganizationAttributes, "id">;
 
-export class OrganizationSetting
+class OrganizationSetting
   extends Model<OrganizationAttributes, OrganizationCreation>
-  implements OrganizationAttributes
-{
+  implements OrganizationAttributes {
   public id!: number;
   public organisation_name!: string;
   public country!: string;
@@ -50,14 +49,12 @@ OrganizationSetting.init(
   },
   {
     sequelize,
-    tableName: "organisation_settings", // exact DB table name
+    tableName: "organisation_settings",
     modelName: "OrganizationSetting",
     timestamps: true,
   }
 );
 
-// --- ASSOCIATIONS ---
-// One organisation can have many payment methods
 OrganizationSetting.hasMany(PaymentMethod, {
   foreignKey: "organization_id",
   as: "payment_methods",
@@ -66,3 +63,6 @@ PaymentMethod.belongsTo(OrganizationSetting, {
   foreignKey: "organization_id",
   as: "organization",
 });
+
+export { OrganizationSetting };
+export default OrganizationSetting;

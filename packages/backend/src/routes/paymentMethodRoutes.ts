@@ -1,6 +1,6 @@
 // routes/paymentMethodRoutes.ts
 import express, { Request, Response } from "express";
-import { PaymentMethod } from "../models/PaymentMethod";
+import PaymentMethod from "../models/PaymentMethod";
 // Note: If 'express-validator' import issues persist, ensure:
 // 1. Run: npm install express-validator in your backend directory
 // 2. In tsconfig.json, add or ensure: "esModuleInterop": true

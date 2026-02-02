@@ -1,7 +1,7 @@
 import { DataTypes, Model } from "sequelize";
 import { sequelize } from "../config/db";
 
-export class PaymentMethod extends Model {
+class PaymentMethod extends Model {
   public id!: number;
   public name!: string;
   public active_on_pos!: boolean;
@@ -15,7 +15,7 @@ export class PaymentMethod extends Model {
 PaymentMethod.init(
   {
     id: {
-      type: DataTypes.INTEGER, // ✅ CHANGED: Removed .UNSIGNED
+      type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
     },
@@ -39,7 +39,7 @@ PaymentMethod.init(
       defaultValue: true,
     },
     organisation_id: {
-      type: DataTypes.INTEGER, // ✅ CHANGED: Removed .UNSIGNED
+      type: DataTypes.INTEGER,
       allowNull: true,
     },
   },
@@ -47,6 +47,9 @@ PaymentMethod.init(
     sequelize,
     tableName: "payment_methods",
     modelName: "PaymentMethod",
-    timestamps: true, // ✅ ADDED: Enable timestamps
+    timestamps: true,
   }
 );
+
+export { PaymentMethod };
+export default PaymentMethod;

@@ -1,8 +1,8 @@
 import { Router, Request, Response } from "express";
-import { Appointment } from "../models/Appointment";
-import { AppointmentType } from "../models/AppointmentType";
+import Appointment from "../models/Appointment";
+import AppointmentType from "../models/AppointmentType";
 import Patient from "../models/Patient";
-import { Staff } from "../models/Staff";
+import Staff from "../models/Staff";
 import { authenticate } from "../middleware/auth";
 import { sequelize } from "../config/db";
 import { QueryTypes } from "sequelize";
