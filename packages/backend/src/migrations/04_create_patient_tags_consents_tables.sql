@@ -8,46 +8,46 @@
 -- =========================================
 -- 🏷️ TAG CATEGORIES TABLE
 -- =========================================
-CREATE TABLE IF NOT EXISTS tag_categories (
-    id INT PRIMARY KEY AUTO_INCREMENT,
+CREATE TABLE IF NOT EXISTS hms_tag_categories (
+    id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
     color VARCHAR(20) NOT NULL DEFAULT '#3B82F6',
     emoji VARCHAR(10) DEFAULT '🏷️',
     description VARCHAR(255),
-    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     sort_order INT DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
 -- Insert default tag categories
-INSERT INTO tag_categories (name, color, emoji, description, sort_order) VALUES
+INSERT INTO hms_tag_categories (name, color, emoji, description, sort_order) VALUES
     ('Medical conditions', '#EF4444', '🔴', 'Medical conditions and diagnoses', 1),
     ('Medical programmes', '#22C55E', '🟢', 'Enrolled medical programmes', 2),
     ('Payment', '#F59E0B', '🟡', 'Payment and billing related tags', 3),
     ('General', '#3B82F6', '🔵', 'General purpose tags', 4),
     ('Allergies', '#EC4899', '💊', 'Patient allergies and sensitivities', 5),
-    ('Insurance', '#8B5CF6', '🛡️', 'Insurance and coverage information', 6);
+    ('Insurance', '#8B5CF6', '🛡️', 'Insurance and coverage information', 6)
+ON CONFLICT (name) DO NOTHING;
 
 -- =========================================
 -- 🏷️ TAGS TABLE
 -- =========================================
-CREATE TABLE IF NOT EXISTS tags (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    category_id INT NOT NULL,
+CREATE TABLE IF NOT EXISTS hms_tags (
+    id SERIAL PRIMARY KEY,
+    category_id INTEGER NOT NULL REFERENCES hms_tag_categories(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
     description VARCHAR(500),
     color VARCHAR(20),
-    is_active TINYINT(1) NOT NULL DEFAULT 1,
-    created_by INT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_tags_category FOREIGN KEY (category_id) REFERENCES tag_categories(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_tags_category_name (category_id, name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_tags_category_name UNIQUE (category_id, name)
+);
 
 -- Insert some default tags
-INSERT INTO tags (category_id, name, description) VALUES
+INSERT INTO hms_tags (category_id, name, description) VALUES
     (1, 'Diabetes', 'Patient has diabetes'),
     (1, 'Hypertension', 'High blood pressure'),
     (1, 'Asthma', 'Respiratory condition'),
@@ -66,157 +66,154 @@ INSERT INTO tags (category_id, name, description) VALUES
     (5, 'Latex Allergy', 'Allergic to latex'),
     (6, 'Jubilee Insurance', 'Covered by Jubilee Insurance'),
     (6, 'AAR Insurance', 'Covered by AAR Insurance'),
-    (6, 'Britam Insurance', 'Covered by Britam Insurance');
+    (6, 'Britam Insurance', 'Covered by Britam Insurance')
+ON CONFLICT (category_id, name) DO NOTHING;
 
 -- =========================================
 -- 🏷️ PATIENT TAGS (Junction Table)
 -- =========================================
-CREATE TABLE IF NOT EXISTS patient_tags (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    patient_id INT NOT NULL,
-    tag_id INT NOT NULL,
+CREATE TABLE IF NOT EXISTS hms_patient_tags (
+    id SERIAL PRIMARY KEY,
+    patient_id INTEGER NOT NULL REFERENCES hms_patients(id) ON DELETE CASCADE,
+    tag_id INTEGER NOT NULL REFERENCES hms_tags(id) ON DELETE CASCADE,
     notes VARCHAR(500),
-    added_by INT,
-    is_active TINYINT(1) NOT NULL DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_patient_tags_patient FOREIGN KEY (patient_id) REFERENCES Patients(id) ON DELETE CASCADE,
-    CONSTRAINT fk_patient_tags_tag FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_patient_tags (patient_id, tag_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    added_by INTEGER,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_hms_patient_tags UNIQUE (patient_id, tag_id)
+);
 
 -- Create indexes for faster lookups
-CREATE INDEX idx_patient_tags_patient_id ON patient_tags(patient_id);
-CREATE INDEX idx_patient_tags_tag_id ON patient_tags(tag_id);
+CREATE INDEX idx_hms_patient_tags_patient_id ON hms_patient_tags(patient_id);
+CREATE INDEX idx_hms_patient_tags_tag_id ON hms_patient_tags(tag_id);
 
 -- =========================================
 -- ✅ CONSENT TYPES TABLE
 -- =========================================
-CREATE TABLE IF NOT EXISTS consent_types (
-    id INT PRIMARY KEY AUTO_INCREMENT,
+CREATE TABLE IF NOT EXISTS hms_consent_types (
+    id SERIAL PRIMARY KEY,
     code VARCHAR(50) NOT NULL UNIQUE,
     title VARCHAR(200) NOT NULL,
     description VARCHAR(1000),
     emoji VARCHAR(10) DEFAULT '📋',
-    is_mandatory TINYINT(1) NOT NULL DEFAULT 0,
-    requires_otp TINYINT(1) NOT NULL DEFAULT 0,
+    is_mandatory BOOLEAN NOT NULL DEFAULT FALSE,
+    requires_otp BOOLEAN NOT NULL DEFAULT FALSE,
     sort_order INT DEFAULT 0,
-    is_active TINYINT(1) NOT NULL DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
 -- Insert default consent types
-INSERT INTO consent_types (code, title, description, emoji, is_mandatory, requires_otp, sort_order) VALUES
+INSERT INTO hms_consent_types (code, title, description, emoji, is_mandatory, requires_otp, sort_order) VALUES
     ('MEDICAL_INFO_RECORDING', 'Medical Information Recording', 
      'Consent to have medical information recorded in the electronic health record system.', 
-     '📝', 1, 0, 1),
+     '📝', TRUE, FALSE, 1),
     ('DATA_ANALYSIS', 'De-identified Data Analysis', 
      'Consent to use de-identified, aggregated data for analysis and research purposes.', 
-     '📊', 0, 0, 2),
+     '📊', FALSE, FALSE, 2),
     ('RESEARCH_CONTACT', 'Research Contact', 
      'Consent that my care provider may contact me to participate in patient benefit and clinical research initiatives.', 
-     '🔬', 0, 0, 3),
+     '🔬', FALSE, FALSE, 3),
     ('SMS_NOTIFICATIONS', 'SMS Notifications', 
      'Consent to receive SMS notifications about appointments, test results, and health reminders.', 
-     '📱', 0, 0, 4),
+     '📱', FALSE, FALSE, 4),
     ('EMAIL_COMMUNICATIONS', 'Email Communications', 
      'Consent to receive email communications regarding health updates and promotional offers.', 
-     '📧', 0, 0, 5),
+     '📧', FALSE, FALSE, 5),
     ('THIRD_PARTY_SHARING', 'Third Party Data Sharing', 
      'Consent to share medical records with authorized third parties for insurance claims and referrals.', 
-     '🤝', 0, 1, 6),
+     '🤝', FALSE, TRUE, 6),
     ('EMERGENCY_CONTACT', 'Emergency Contact Authorization', 
      'Consent to contact designated emergency contacts in case of medical emergencies.', 
-     '🚨', 1, 0, 7),
+     '🚨', TRUE, FALSE, 7),
     ('PHOTO_VIDEO', 'Photography and Video Recording', 
      'Consent for photographs and video recordings for medical documentation and training purposes.', 
-     '📷', 0, 1, 8);
+     '📷', FALSE, TRUE, 8)
+ON CONFLICT (code) DO NOTHING;
 
 -- =========================================
 -- ✅ PATIENT CONSENTS TABLE
 -- =========================================
-CREATE TABLE IF NOT EXISTS patient_consents (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    patient_id INT NOT NULL,
-    consent_type_id INT NOT NULL,
-    is_granted TINYINT(1) NOT NULL DEFAULT 0,
-    granted_at DATETIME,
-    revoked_at DATETIME,
-    otp_verified TINYINT(1) NOT NULL DEFAULT 0,
-    otp_verified_at DATETIME,
+CREATE TABLE IF NOT EXISTS hms_patient_consents (
+    id SERIAL PRIMARY KEY,
+    patient_id INTEGER NOT NULL REFERENCES hms_patients(id) ON DELETE CASCADE,
+    consent_type_id INTEGER NOT NULL REFERENCES hms_consent_types(id) ON DELETE CASCADE,
+    is_granted BOOLEAN NOT NULL DEFAULT FALSE,
+    granted_at TIMESTAMP WITH TIME ZONE,
+    revoked_at TIMESTAMP WITH TIME ZONE,
+    otp_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    otp_verified_at TIMESTAMP WITH TIME ZONE,
     otp_code VARCHAR(10),
-    otp_expires_at DATETIME,
+    otp_expires_at TIMESTAMP WITH TIME ZONE,
     ip_address VARCHAR(50),
     user_agent VARCHAR(500),
-    witness_staff_id INT,
+    witness_staff_id INTEGER,
     notes VARCHAR(500),
-    version INT NOT NULL DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_patient_consents_patient FOREIGN KEY (patient_id) REFERENCES Patients(id) ON DELETE CASCADE,
-    CONSTRAINT fk_patient_consents_type FOREIGN KEY (consent_type_id) REFERENCES consent_types(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_patient_consents (patient_id, consent_type_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    version INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_hms_patient_consents UNIQUE (patient_id, consent_type_id)
+);
 
 -- Create indexes for faster lookups
-CREATE INDEX idx_patient_consents_patient_id ON patient_consents(patient_id);
-CREATE INDEX idx_patient_consents_type_id ON patient_consents(consent_type_id);
-CREATE INDEX idx_patient_consents_granted ON patient_consents(is_granted);
+CREATE INDEX idx_hms_patient_consents_patient_id ON hms_patient_consents(patient_id);
+CREATE INDEX idx_hms_patient_consents_type_id ON hms_patient_consents(consent_type_id);
+CREATE INDEX idx_hms_patient_consents_granted ON hms_patient_consents(is_granted);
 
 -- =========================================
 -- 📜 CONSENT AUDIT LOG TABLE
 -- =========================================
-CREATE TABLE IF NOT EXISTS consent_audit_log (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    patient_consent_id INT NOT NULL,
+CREATE TABLE IF NOT EXISTS hms_consent_audit_log (
+    id SERIAL PRIMARY KEY,
+    patient_consent_id INTEGER NOT NULL REFERENCES hms_patient_consents(id) ON DELETE CASCADE,
     action VARCHAR(50) NOT NULL,
     old_value TEXT,
     new_value TEXT,
-    performed_by INT,
+    performed_by INTEGER,
     ip_address VARCHAR(50),
     user_agent VARCHAR(500),
     notes VARCHAR(500),
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_consent_audit_consent FOREIGN KEY (patient_consent_id) REFERENCES patient_consents(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
-CREATE INDEX idx_consent_audit_patient_consent ON consent_audit_log(patient_consent_id);
-CREATE INDEX idx_consent_audit_created ON consent_audit_log(created_at);
+CREATE INDEX idx_hms_consent_audit_patient_consent ON hms_consent_audit_log(patient_consent_id);
+CREATE INDEX idx_hms_consent_audit_created ON hms_consent_audit_log(created_at);
 
 -- =========================================
 -- 🔧 HELPFUL VIEWS
 -- =========================================
 
 -- View: Patient Tags with Category Info
-CREATE OR REPLACE VIEW vw_patient_tags_detailed AS
+CREATE OR REPLACE VIEW hms_vw_patient_tags_detailed AS
 SELECT 
     pt.id,
     pt.patient_id,
-    CONCAT(p.first_name, ' ', IFNULL(CONCAT(p.middle_name, ' '), ''), p.last_name) AS patient_name,
+    CONCAT(p.first_name, ' ', COALESCE(p.middle_name || ' ', ''), p.last_name) AS patient_name,
     t.id AS tag_id,
     t.name AS tag_name,
     t.description AS tag_description,
     tc.id AS category_id,
     tc.name AS category_name,
-    IFNULL(t.color, tc.color) AS color,
+    COALESCE(t.color, tc.color) AS color,
     tc.emoji AS category_emoji,
     pt.notes,
     pt.is_active,
     pt.created_at,
     pt.updated_at
-FROM patient_tags pt
-JOIN Patients p ON pt.patient_id = p.id
-JOIN tags t ON pt.tag_id = t.id
-JOIN tag_categories tc ON t.category_id = tc.id
-WHERE pt.is_active = 1 AND t.is_active = 1;
+FROM hms_patient_tags pt
+JOIN hms_patients p ON pt.patient_id = p.id
+JOIN hms_tags t ON pt.tag_id = t.id
+JOIN hms_tag_categories tc ON t.category_id = tc.id
+WHERE pt.is_active = TRUE AND t.is_active = TRUE;
 
 -- View: Patient Consents with Type Info
-CREATE OR REPLACE VIEW vw_patient_consents_detailed AS
+CREATE OR REPLACE VIEW hms_vw_patient_consents_detailed AS
 SELECT 
     pc.id,
     pc.patient_id,
-    CONCAT(p.first_name, ' ', IFNULL(CONCAT(p.middle_name, ' '), ''), p.last_name) AS patient_name,
+    CONCAT(p.first_name, ' ', COALESCE(p.middle_name || ' ', ''), p.last_name) AS patient_name,
     ct.id AS consent_type_id,
     ct.code AS consent_code,
     ct.title AS consent_title,
@@ -232,9 +229,9 @@ SELECT
     pc.version,
     pc.created_at,
     pc.updated_at
-FROM patient_consents pc
-JOIN Patients p ON pc.patient_id = p.id
-JOIN consent_types ct ON pc.consent_type_id = ct.id;
+FROM hms_patient_consents pc
+JOIN hms_patients p ON pc.patient_id = p.id
+JOIN hms_consent_types ct ON pc.consent_type_id = ct.id;
 
 -- =========================================
 -- 📊 SUMMARY
