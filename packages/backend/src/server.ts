@@ -35,15 +35,17 @@ import OrganisationSetting from "./models/OrganisationSetting";
 import PaymentMethod from "./models/PaymentMethod";
 import Product from "./models/Product";
 import Staff from "./models/Staff";
-import { Triage } from "./models/Triage";
-import { Encounter } from "./models/Encounter";
+import Triage from "./models/Triage";
+import Encounter from "./models/Encounter";
 import Complaint from "./models/Complaint";
-import { InvestigationTest } from './models/InvestigationTest';
-import { InvestigationRequest } from './models/InvestigationRequest';
-import { InvestigationResult } from './models/InvestigationResult';
+import InvestigationTest from './models/InvestigationTest';
+import InvestigationRequest from './models/InvestigationRequest';
+import InvestigationResult from './models/InvestigationResult';
 import UserRole from './models/UserRole';
 import Permission from './models/Permission';
 import RolePermission from './models/RolePermission';
+import Invoice from "./models/Invoice";
+import Payment from "./models/Payment";
 
 const app = express();
 
@@ -62,7 +64,8 @@ const withRetry = async <T>(
     try {
       return await operation();
     } catch (error: any) {
-      const isDeadlock = error?.parent?.code === "ER_LOCK_DEADLOCK" || error?.parent?.errno === 1213;
+      // PostgreSQL deadlock codes: 40P01 is deadlock_detected
+      const isDeadlock = error?.parent?.code === "40P01" || error?.parent?.code === "ER_LOCK_DEADLOCK" || error?.parent?.errno === 1213;
       if (isDeadlock && attempt < maxRetries - 1) {
         const backoff = baseDelay * Math.pow(2, attempt);
         const jitter = Math.floor(Math.random() * 200);
@@ -174,19 +177,16 @@ const createEncounterTableManually = async (): Promise<void> => {
 
     await runQuery(`
       CREATE TABLE IF NOT EXISTS encounters (
-        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         encounter_number VARCHAR(255) NOT NULL UNIQUE,
         encounter_type VARCHAR(255) NOT NULL,
         priority_type VARCHAR(255) NOT NULL,
         notes TEXT,
-        patient_id ${patientIdType} NOT NULL,
-        provider_id ${staffIdType} NOT NULL,
-        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX (patient_id),
-        INDEX (provider_id),
-        INDEX (encounter_number)
-      ) ENGINE=InnoDB;
+        patient_id INTEGER NOT NULL REFERENCES "Patients"(id),
+        provider_id INTEGER NOT NULL REFERENCES staff(id),
+        "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
     `);
 
     console.log("✅ Encounters table created successfully");
@@ -250,17 +250,15 @@ const createComplaintTableManually = async (): Promise<void> => {
     console.log("🛠️ Attempting manual creation of complaints table...");
     await runQuery(`
       CREATE TABLE IF NOT EXISTS complaints (
-        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        encounter_id INT UNSIGNED NOT NULL,
+        id SERIAL PRIMARY KEY,
+        encounter_id INTEGER NOT NULL REFERENCES encounters(id) ON DELETE CASCADE,
         complaint_text TEXT NOT NULL,
-        duration_value INT UNSIGNED,
-        duration_unit ENUM('Hours','Days','Weeks','Months','Years'),
+        duration_value INTEGER,
+        duration_unit VARCHAR(50),
         comments TEXT,
-        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX (encounter_id),
-        INDEX (created_at)
-      ) ENGINE=InnoDB;
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
     `);
     console.log("✅ Manual creation of complaints table completed");
 
@@ -315,18 +313,15 @@ const createAppointmentTableManually = async (): Promise<void> => {
     console.log("🛠️ Attempting manual creation of appointments table...");
     await runQuery(`
       CREATE TABLE IF NOT EXISTS appointments (
-        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        appointment_date DATETIME NOT NULL,
+        id SERIAL PRIMARY KEY,
+        appointment_date TIMESTAMP WITH TIME ZONE NOT NULL,
         status VARCHAR(50) NOT NULL DEFAULT 'Scheduled',
         reason TEXT,
-        doctor_id INT UNSIGNED NOT NULL,
-        patient_id INT UNSIGNED NOT NULL,
-        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX (doctor_id),
-        INDEX (patient_id),
-        INDEX (appointment_date)
-      ) ENGINE=InnoDB;
+        doctor_id INTEGER NOT NULL,
+        patient_id INTEGER NOT NULL REFERENCES "Patients"(id) ON DELETE CASCADE,
+        "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
     `);
     console.log("✅ Manual creation of appointments table completed");
   } catch (error) {
@@ -671,10 +666,10 @@ const setupRoutes = async (): Promise<void> => {
     try {
       console.log("📦 Syncing models with schema updates...");
 
-      // Disable FK checks temporarily to reduce chance of deadlocks while altering many tables
+      // Disable FK checks temporarily for sync (PostgreSQL style)
       try {
-        await sequelize.query("SET FOREIGN_KEY_CHECKS = 0");
-        console.log("🔓 Foreign key checks disabled");
+        await sequelize.query("SET session_replication_role = 'replica'");
+        console.log("🔓 Foreign key checks disabled (session_replication_role=replica)");
       } catch (fkErr) {
         console.warn("⚠️ Could not disable foreign key checks:", fkErr);
       }
@@ -696,8 +691,8 @@ const setupRoutes = async (): Promise<void> => {
       console.log("✅ All models synced");
     } finally {
       try {
-        await sequelize.query("SET FOREIGN_KEY_CHECKS = 1");
-        console.log("🔒 Foreign key checks re-enabled");
+        await sequelize.query("SET session_replication_role = 'origin'");
+        console.log("🔒 Foreign key checks re-enabled (session_replication_role=origin)");
       } catch (err) {
         console.warn("⚠️ Could not re-enable foreign key checks:", err);
       }
