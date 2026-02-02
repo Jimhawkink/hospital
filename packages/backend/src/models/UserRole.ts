@@ -42,6 +42,9 @@ UserRole.init(
         tableName: "hms_user_roles",
         modelName: "UserRole",
         timestamps: true,
+        underscored: true,
+        createdAt: 'created_at',
+        updatedAt: 'updated_at'
     }
 );
 

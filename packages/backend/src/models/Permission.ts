@@ -68,6 +68,9 @@ Permission.init(
         tableName: "hms_permissions",
         modelName: "Permission",
         timestamps: true,
+        underscored: true,
+        createdAt: 'created_at',
+        updatedAt: 'updated_at'
     }
 );
 

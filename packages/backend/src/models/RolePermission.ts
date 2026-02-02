@@ -65,6 +65,9 @@ RolePermission.init(
         tableName: "hms_role_permissions",
         modelName: "RolePermission",
         timestamps: true,
+        underscored: true,
+        createdAt: 'created_at',
+        updatedAt: 'updated_at',
         indexes: [
             {
                 unique: true,

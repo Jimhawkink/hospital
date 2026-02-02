@@ -236,6 +236,9 @@ Triage.init(
         fields: ['patient_id', 'date']
       }
     ],
+    underscored: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
     hooks: {
       beforeValidate: (triage: Triage) => {
         if (!triage.date) {

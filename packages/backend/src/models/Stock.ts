@@ -22,16 +22,19 @@ Stock.init(
     sku: { type: DataTypes.STRING },
     category: { type: DataTypes.STRING, allowNull: false },
     quantity: { type: DataTypes.INTEGER, allowNull: false },
-    availableUnits: { type: DataTypes.INTEGER, allowNull: false },
+    availableUnits: { type: DataTypes.INTEGER, allowNull: false, field: 'available_units' },
     status: { type: DataTypes.ENUM("available", "out-of-stock", "low-stock"), allowNull: false },
-    expiryDate: { type: DataTypes.STRING },
-    batchNo: { type: DataTypes.STRING },
-    sellingPrice: { type: DataTypes.FLOAT },
+    expiryDate: { type: DataTypes.STRING, field: 'expiry_date' },
+    batchNo: { type: DataTypes.STRING, field: 'batch_no' },
+    sellingPrice: { type: DataTypes.FLOAT, field: 'selling_price' },
   },
   {
     sequelize,
     tableName: "hms_stock",
     timestamps: true,
+    underscored: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
   }
 );
 

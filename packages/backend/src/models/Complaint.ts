@@ -56,20 +56,14 @@ Complaint.init(
       type: DataTypes.TEXT,
       allowNull: true,
     },
-    created_at: {
-      type: DataTypes.DATE,
-      defaultValue: DataTypes.NOW,
-    },
-    updated_at: {
-      type: DataTypes.DATE,
-      defaultValue: DataTypes.NOW,
-    },
   },
   {
     tableName: 'hms_complaints',
     sequelize,
     timestamps: true,
     underscored: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
   }
 );
 

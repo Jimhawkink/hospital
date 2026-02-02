@@ -14,15 +14,18 @@ Package.init(
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     name: { type: DataTypes.STRING, allowNull: false },
-    sellingPrice: { type: DataTypes.FLOAT, allowNull: false },
-    unitsPerPack: { type: DataTypes.INTEGER, allowNull: false },
-    availableForPurchase: { type: DataTypes.BOOLEAN, defaultValue: true },
-    stockId: { type: DataTypes.UUID, allowNull: false },
+    sellingPrice: { type: DataTypes.FLOAT, allowNull: false, field: 'selling_price' },
+    unitsPerPack: { type: DataTypes.INTEGER, allowNull: false, field: 'units_per_pack' },
+    availableForPurchase: { type: DataTypes.BOOLEAN, defaultValue: true, field: 'available_for_purchase' },
+    stockId: { type: DataTypes.UUID, allowNull: false, field: 'stock_id' },
   },
   {
     sequelize,
     tableName: "hms_packages",
     timestamps: true,
+    underscored: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
   }
 );
 

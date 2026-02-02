@@ -82,6 +82,10 @@ OrganisationSetting.init(
     sequelize,
     tableName: "hms_organisation_settings",
     modelName: "OrganisationSetting",
+    timestamps: true,
+    underscored: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
   }
 );
 

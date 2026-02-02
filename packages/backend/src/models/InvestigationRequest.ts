@@ -59,6 +59,9 @@ InvestigationRequest.init({
   sequelize,
   tableName: 'hms_investigation_requests',
   timestamps: true,
+  underscored: true,
+  createdAt: 'created_at',
+  updatedAt: 'updated_at'
 });
 
 InvestigationRequest.belongsTo(Encounter, { foreignKey: 'encounter_id', onDelete: 'CASCADE' });

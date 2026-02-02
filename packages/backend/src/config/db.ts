@@ -73,6 +73,9 @@ OrganisationSetting.init(
     modelName: 'OrganisationSetting',
     tableName: 'hms_organisation_settings',
     timestamps: true,
+    underscored: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
   }
 );
 

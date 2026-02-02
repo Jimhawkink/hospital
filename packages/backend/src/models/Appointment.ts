@@ -100,14 +100,13 @@ Appointment.init(
     cancelled_at: { type: DataTypes.DATE, allowNull: true },
     cancelled_by: { type: DataTypes.INTEGER, allowNull: true },
     cancellation_reason: { type: DataTypes.STRING(500), allowNull: true },
-    created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
-    updated_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   },
   {
     sequelize,
     modelName: "Appointment",
     tableName: "hms_appointments",
     timestamps: true,
+    underscored: true,
     createdAt: "created_at",
     updatedAt: "updated_at",
   }

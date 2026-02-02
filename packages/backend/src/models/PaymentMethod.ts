@@ -48,6 +48,9 @@ PaymentMethod.init(
     tableName: "hms_payment_methods",
     modelName: "PaymentMethod",
     timestamps: true,
+    underscored: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
   }
 );
 

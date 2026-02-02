@@ -28,66 +28,20 @@ Product.init(
       primaryKey: true,
       allowNull: false,
     },
-    productName: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    productType: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      defaultValue: "Medicine",
-    },
-    sku: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    availableqty: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 0,
-    },
-    category: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    basePackage: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      defaultValue: "unit",
-    },
-    unitsPerPackage: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 1,
-    },
-    buyingprice: {
-      type: DataTypes.FLOAT,
-      allowNull: false,
-      defaultValue: 0,
-    },
-    sellingPrice: {
-      type: DataTypes.FLOAT,
-      allowNull: false,
-      defaultValue: 0,
-    },
-    availableOnPOS: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      defaultValue: true,
-    },
-    minStockNotification: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 0,
-    },
-    expiryDate: {
-      type: DataTypes.DATE,
-      allowNull: true,
-    },
-    batchNo: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
+    productName: { type: DataTypes.STRING, allowNull: false, field: 'product_name' },
+    productType: { type: DataTypes.STRING, allowNull: false, defaultValue: "Medicine", field: 'product_type' },
+    sku: { type: DataTypes.STRING, allowNull: true },
+    availableqty: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, field: 'available_qty' },
+    category: { type: DataTypes.STRING, allowNull: false },
+    basePackage: { type: DataTypes.STRING, allowNull: false, defaultValue: "unit", field: 'base_package' },
+    unitsPerPackage: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1, field: 'units_per_package' },
+    buyingprice: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0, field: 'buying_price' },
+    sellingPrice: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0, field: 'selling_price' },
+    availableOnPOS: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: 'available_on_pos' },
+    minStockNotification: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, field: 'min_stock_notification' },
+    expiryDate: { type: DataTypes.DATE, allowNull: true, field: 'expiry_date' },
+    batchNo: { type: DataTypes.STRING, allowNull: true, field: 'batch_no' },
+
     createdAt: {
       type: DataTypes.DATE,
       allowNull: false,
@@ -100,8 +54,11 @@ Product.init(
   {
     sequelize,
     modelName: "Product",
-    tableName: "Products",
+    tableName: "hms_products",
     timestamps: true,
+    underscored: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
   }
 );
 

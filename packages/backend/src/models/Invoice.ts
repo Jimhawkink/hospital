@@ -16,7 +16,14 @@ Invoice.init({
     invoice_number: DataTypes.STRING,
     amount: DataTypes.DECIMAL(10, 2),
     status: { type: DataTypes.ENUM("unpaid", "partially_paid", "paid", "cancelled"), defaultValue: "unpaid" }
-}, { sequelize, tableName: "hms_invoices" });
+}, {
+    sequelize,
+    tableName: "hms_invoices",
+    timestamps: true,
+    underscored: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
+});
 
 Invoice.belongsTo(Patient, { foreignKey: "patient_id" });
 
