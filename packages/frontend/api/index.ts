@@ -127,6 +127,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
 
             try {
+                // HARDCODED FALLBACK CREDENTIALS (Requested by User)
+                if (email === 'admin@kwh.com' && password === 'Admin@123') {
+                    console.log('✅ Using hardcoded admin credentials');
+                    const token = jwt.sign(
+                        { id: 99999, role: 'Administrator', name: 'System Admin', email: 'admin@kwh.com' },
+                        JWT_SECRET,
+                        { expiresIn: '1d' }
+                    );
+                    return res.status(200).json({
+                        token,
+                        user: { id: 99999, name: 'System Admin', email: 'admin@kwh.com', role: 'Administrator' }
+                    });
+                }
+
                 await sequelize.authenticate();
 
                 const user = await User.findOne({ where: { email } });
