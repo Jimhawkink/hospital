@@ -9,11 +9,5 @@
       "source": "/api/(.*)",
       "destination": "/api"
     }
-  ],
-  "functions": {
-    "api/index.ts": {
-      "memory": 1024,
-      "maxDuration": 30
-    }
-  }
+  ]
 }
