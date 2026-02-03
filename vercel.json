@@ -1,13 +1,7 @@
 {
   "version": 2,
-  "framework": "vite",
   "buildCommand": "cd packages/frontend && npm install && npm run build",
   "outputDirectory": "packages/frontend/dist",
-  "installCommand": "npm install && cd packages/frontend && npm install",
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api"
-    }
-  ]
+  "installCommand": "cd packages/frontend && npm install",
+  "framework": "vite"
 }
