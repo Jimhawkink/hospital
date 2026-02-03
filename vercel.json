@@ -1,22 +1,19 @@
 {
   "version": 2,
-  "buildCommand": "cd packages/backend && npm install && npm run build",
-  "outputDirectory": "packages/backend/dist",
-  "installCommand": "cd packages/backend && npm install",
-  "framework": null,
+  "framework": "vite",
+  "buildCommand": "cd packages/frontend && npm install && npm run build",
+  "outputDirectory": "packages/frontend/dist",
+  "installCommand": "npm install && cd packages/frontend && npm install",
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api/index"
+      "destination": "/api"
     }
   ],
   "functions": {
-    "api/index.js": {
-      "runtime": "nodejs20.x",
+    "api/index.ts": {
+      "memory": 1024,
       "maxDuration": 30
     }
-  },
-  "env": {
-    "NODE_ENV": "production"
   }
 }
