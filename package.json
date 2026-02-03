@@ -1,0 +1,12 @@
+{
+  "name": "hms-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "vercel-build": "cd packages/backend && npm install && npm run build",
+    "build": "npm run vercel-build"
+  },
+  "workspaces": [
+    "packages/*"
+  ]
+}
