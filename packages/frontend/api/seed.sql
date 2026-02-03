@@ -5,8 +5,8 @@ INSERT INTO public.hms_users (name, email, password, role, "createdAt", "updated
 VALUES (
     'System Admin', 
     'admin@kwh.com', 
-    -- Hash for 'Admin@123' (bcrypt)
-    '$2a$12$P5qLpXyfXyXyXyXyXyXyHu1234567890abcdefghijklm', 
+    -- Hash for 'Admin@123'
+    '$2a$10$vI8aWBnW3fID.ZQ4/zo1G.q1lRps.9cGLcZEiGDMVr5yUP1nERbac', 
     'Administrator',
     NOW(),
     NOW()
