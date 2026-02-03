@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "vercel-build": "cd packages/backend && npm install && npm run build",
-    "build": "npm run vercel-build"
+    "vercel-build": "cd packages/frontend && npm install && npm run build",
+    "build": "cd packages/frontend && npm install && npm run build"
   },
   "workspaces": [
     "packages/*"
