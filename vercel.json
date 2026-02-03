@@ -1,8 +1,0 @@
-{
-  "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": "packages/frontend/dist",
-  "installCommand": "npm install",
-  "framework": "vite",
-  "rootDirectory": "packages/frontend"
-}
