@@ -2,8 +2,24 @@ import React, { useState } from "react";
 import { DotsVerticalIcon } from "@radix-ui/react-icons";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import axios from "axios";
+import { EditPatientModal } from "./EditPatientModal";
 
-export default function PatientRow({ patient, onPatientUpdated, onPatientDeleted }) {
+interface Patient {
+  id: string | number;
+  first_name: string;
+  middle_name?: string;
+  last_name: string;
+  dob?: string;
+  [key: string]: any;
+}
+
+interface PatientRowProps {
+  patient: Patient;
+  onPatientUpdated: (patient: Patient) => void;
+  onPatientDeleted: (id: string | number) => void;
+}
+
+export default function PatientRow({ patient, onPatientUpdated, onPatientDeleted }: PatientRowProps) {
   const [showEditModal, setShowEditModal] = useState(false);
 
   const handleDelete = async () => {
@@ -50,10 +66,16 @@ export default function PatientRow({ patient, onPatientUpdated, onPatientDeleted
 
         {showEditModal && (
           <EditPatientModal
-            patient={patient}
+            patient={{
+              id: String(patient.id),
+              firstName: patient.first_name,
+              lastName: patient.last_name,
+              middleName: patient.middle_name,
+              dob: patient.dob
+            }}
             onClose={() => setShowEditModal(false)}
-            onSave={(updatedPatient) => {
-              onPatientUpdated(updatedPatient);
+            onSave={() => {
+              onPatientUpdated(patient);
               setShowEditModal(false);
             }}
           />
