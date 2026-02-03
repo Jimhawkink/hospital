@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../api/axios";
 import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -65,7 +65,7 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
     setIsLoading(true);
     setError("");
     try {
-      const res = await axios.post("http://localhost:5000/api/auth/login", { email, password });
+      const res = await api.post("/auth/login", { email, password });
       const data = res.data as any;
       localStorage.setItem("hms_token", data.token);
       localStorage.setItem("hms_user", JSON.stringify(data.user));

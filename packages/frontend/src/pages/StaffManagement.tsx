@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import api from "../api/axios";
 import { Plus, Pencil, Trash2, Filter, Settings, Search, Users, Calendar, User, UserCheck, DollarSign, Headphones, Shield } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import StyledButton from "../components/StyledButton";
@@ -16,7 +16,7 @@ type StaffRow = {
   created_at: string;
 };
 
-const API = "http://localhost:5000";
+
 
 // Helper functions for modern UI
 const getInitials = (firstName: string, lastName: string) => {
@@ -61,7 +61,7 @@ export default function StaffManagement() {
   const nav = useNavigate();
 
   const fetchRows = async () => {
-    const res = await axios.get<StaffRow[]>(`${API}/api/staff`);
+    const res = await api.get<StaffRow[]>("/staff");
     setRows(res.data);
   };
 
@@ -78,13 +78,13 @@ export default function StaffManagement() {
   }, [rows, q]);
 
   const toggleActive = async (id: number, next: boolean) => {
-    await axios.patch(`${API}/api/staff/${id}/active`, { is_active: next });
+    await api.patch(`/staff/${id}/active`, { is_active: next });
     setRows(prev => prev.map(r => (r.id === id ? { ...r, is_active: next ? 1 : 0 } : r)));
   };
 
   const remove = async (id: number) => {
     if (!confirm("Delete this staff member?")) return;
-    await axios.delete(`${API}/api/staff/${id}`);
+    await api.delete(`/staff/${id}`);
     setRows(prev => prev.filter(r => r.id !== id));
   };
 
@@ -244,13 +244,12 @@ export default function StaffManagement() {
                         </td>
                         <td className="px-6 py-5 whitespace-nowrap">
                           <div className="flex items-center gap-3">
-                            <Switch 
-                              checked={!!r.is_active} 
-                              onChange={v => toggleActive(r.id, v)} 
+                            <Switch
+                              checked={!!r.is_active}
+                              onChange={v => toggleActive(r.id, v)}
                             />
-                            <span className={`text-sm font-bold uppercase tracking-wide ${
-                              r.is_active ? 'text-green-600' : 'text-slate-500'
-                            }`}>
+                            <span className={`text-sm font-bold uppercase tracking-wide ${r.is_active ? 'text-green-600' : 'text-slate-500'
+                              }`}>
                               {r.is_active ? 'Active' : 'Inactive'}
                             </span>
                           </div>

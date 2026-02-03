@@ -2,7 +2,7 @@
 // Modern Patient Encounter Page with professional UI
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import axios from "axios";
+import api from "../api/axios";
 import ComplaintsPage from './ComplaintsPage';
 import InvestigationPage from './InvestigationPage';
 
@@ -108,10 +108,7 @@ const PatientEncounterPage: React.FC = () => {
   const [expandedItems, setExpandedItems] = useState<{ [key: string]: boolean }>({});
 
   // API helper
-  const api = axios.create({
-    baseURL: "http://localhost:5000/api",
-    headers: { Authorization: `Bearer ${localStorage.getItem("hms_token")}` },
-  });
+
 
   // Load patient from route params
   useEffect(() => {

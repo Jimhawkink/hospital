@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import axios from "axios";
+import api from "../api/axios";
 import { BookAppointmentModal } from "../components/BookAppointmentModal";
 import { AppointmentDetailsModal } from "../components/AppointmentDetailsModal";
 
@@ -102,10 +102,7 @@ export default function AppointmentsPage() {
     try {
       setLoading(true);
       setError(null);
-      const api = axios.create({
-        baseURL: "http://localhost:5000/api",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+
 
       // Fetch appointments from the view or join data manually
       const res = await api.get("/appointments");
@@ -295,10 +292,10 @@ export default function AppointmentsPage() {
                       {/* Status Dot */}
                       <div className="w-2 flex-shrink-0">
                         <div className={`w-1.5 h-1.5 rounded-full ${apt.status === 'Scheduled' ? 'bg-blue-400' :
-                            apt.status === 'Confirmed' ? 'bg-green-400' :
-                              apt.status === 'Cancelled' ? 'bg-red-400' :
-                                apt.status === 'Completed' ? 'bg-emerald-400' :
-                                  'bg-slate-400'
+                          apt.status === 'Confirmed' ? 'bg-green-400' :
+                            apt.status === 'Cancelled' ? 'bg-red-400' :
+                              apt.status === 'Completed' ? 'bg-emerald-400' :
+                                'bg-slate-400'
                           }`} />
                       </div>
 
@@ -315,9 +312,9 @@ export default function AppointmentsPage() {
 
                       {/* Status Badge */}
                       <div className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${apt.status === 'Confirmed' ? 'bg-green-100 text-green-700' :
-                          apt.status === 'Cancelled' ? 'bg-red-100 text-red-700' :
-                            apt.status === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
-                              'bg-blue-100 text-blue-700'
+                        apt.status === 'Cancelled' ? 'bg-red-100 text-red-700' :
+                          apt.status === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
+                            'bg-blue-100 text-blue-700'
                         }`}>
                         {apt.status}
                       </div>

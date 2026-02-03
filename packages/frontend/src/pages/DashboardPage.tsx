@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import axios from "axios";
+import api from "../api/axios";
 import { useNavigate } from "react-router-dom";
 
 type Encounter = {
@@ -178,10 +178,7 @@ export default function DashboardPage() {
       return;
     }
 
-    const api = axios.create({
-      baseURL: "http://localhost:5000/api",
-      headers: { Authorization: `Bearer ${token}` },
-    });
+
 
     (async () => {
       try {

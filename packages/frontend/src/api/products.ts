@@ -1,5 +1,5 @@
 // api/products.ts
-const API_URL = "http://localhost:5000/api/products";
+const API_URL = "/api/products";
 
 // ✅ Get all products
 export async function getProducts() {

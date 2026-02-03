@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../api/axios";
 import { Save, Undo2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import StyledButton from "../components/StyledButton";
 
-const API = "http://localhost:5000";
+
 
 type Form = {
   title: string;
@@ -48,18 +48,18 @@ export default function AddStaff() {
   useEffect(() => {
     (async () => {
       const [rRes, jRes] = await Promise.all([
-        axios.get<string[]>(`${API}/api/roles`),
-        axios.get<string[]>(`${API}/api/job-titles`)
+        api.get<string[]>("/roles"),
+        api.get<string[]>("/job-titles")
       ]);
       setRoles(rRes.data);
       setTitles(jRes.data);
     })();
   }, []);
 
-useEffect(() => {
+  useEffect(() => {
     if (!id) return;
     (async () => {
-      const res = await axios.get(`${API}/api/staff/${id}`);
+      const res = await api.get(`/staff/${id}`);
       const s = res.data as any; // Type assertion for API response
       setForm({
         title: s.title || "",
@@ -86,9 +86,9 @@ useEffect(() => {
     setSaving(true);
     try {
       if (id) {
-        await axios.put(`${API}/api/staff/${id}`, form);
+        await api.put(`/staff/${id}`, form);
       } else {
-        await axios.post(`${API}/api/staff`, form);
+        await api.post("/staff", form);
       }
       nav("/staff");
     } catch (e: any) {

@@ -10,7 +10,7 @@ console.log('🔧 Environment check:', {
 
 // Create axios instance with base configuration
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api', // Temporarily hardcoded for testing
+  baseURL: '/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -46,12 +46,12 @@ api.interceptors.response.use(
       localStorage.removeItem('authToken');
       window.location.href = '/login';
     }
-    
+
     if (error.response?.status >= 500) {
       // Handle server errors
       console.error('Server error:', error.response.data);
     }
-    
+
     return Promise.reject(error);
   }
 );

@@ -1,10 +1,10 @@
 // src/api/stock.ts
-import axios from "axios";
+import api from "../../api/axios";
 import useSWR from "swr";
 
-const API_BASE = "http://localhost:5000/api"; // adjust if needed
+const API_BASE = "";
 
-const fetcher = (url: string) => axios.get(url).then(res => res.data);
+const fetcher = (url: string) => api.get(url).then(res => res.data);
 
 export function useStocks() {
   const { data, error, isLoading, mutate } = useSWR(`${API_BASE}/stocks`, fetcher);
@@ -17,16 +17,16 @@ export function useStocks() {
 }
 
 export async function addStock(stock: any) {
-  const res = await axios.post(`${API_BASE}/stocks`, stock);
+  const res = await api.post(`${API_BASE}/stocks`, stock);
   return res.data;
 }
 
 export async function updateStock(id: string, stock: any) {
-  const res = await axios.put(`${API_BASE}/stocks/${id}`, stock);
+  const res = await api.put(`${API_BASE}/stocks/${id}`, stock);
   return res.data;
 }
 
 export async function deleteStock(id: string) {
-  const res = await axios.delete(`${API_BASE}/stocks/${id}`);
+  const res = await api.delete(`${API_BASE}/stocks/${id}`);
   return res.data;
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../api/axios";
 import {
   Plus,
   Upload,
@@ -60,7 +60,7 @@ interface RolePermission {
 }
 
 export default function OrganisationSettingsForm() {
-  const API = "http://localhost:5000";
+
 
   const [logo, setLogo] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>("");
@@ -109,7 +109,7 @@ export default function OrganisationSettingsForm() {
 
   const fetchOrganisationSettings = async () => {
     try {
-      const res = await axios.get<OrganisationData>(`${API}/api/organisation-settings`);
+      const res = await api.get<OrganisationData>("/organisation-settings");
       if (res.data) {
         const fetchedData: OrganisationData = {
           organisation_name: res.data.organisation_name || "",
@@ -144,7 +144,7 @@ export default function OrganisationSettingsForm() {
         if (fetchedData.logo_url) {
           const cleanUrl = fetchedData.logo_url.startsWith("http")
             ? fetchedData.logo_url
-            : `${API}/${fetchedData.logo_url.replace(/^\/+/, "")}`;
+            : `/${fetchedData.logo_url.replace(/^\/+/, "")}`;
           setLogoPreview(cleanUrl);
         }
       } else {
@@ -189,7 +189,7 @@ export default function OrganisationSettingsForm() {
 
   const fetchPaymentMethods = async () => {
     try {
-      const res = await axios.get<PaymentMethod[]>(`${API}/api/organization/payment-methods`);
+      const res = await api.get<PaymentMethod[]>("/organization/payment-methods");
       setPaymentMethods(res.data || []);
     } catch (err) {
       console.error("Error fetching payment methods:", err);
@@ -199,7 +199,7 @@ export default function OrganisationSettingsForm() {
 
   const fetchUserRoles = async () => {
     try {
-      const res = await axios.get<UserRole[]>(`${API}/api/organization/roles`);
+      const res = await api.get<UserRole[]>("/organization/roles");
       setUserRoles(res.data || []);
       // Auto-select first role if available
       if (res.data && res.data.length > 0 && !selectedRoleId) {
@@ -213,7 +213,7 @@ export default function OrganisationSettingsForm() {
 
   const fetchRolePermissions = async (roleId: number) => {
     try {
-      const res = await axios.get<RolePermission[]>(`${API}/api/organization/roles/${roleId}/permissions`);
+      const res = await api.get<RolePermission[]>(`/organization/roles/${roleId}/permissions`);
       const permissions = res.data || [];
       setRolePermissions(permissions);
       setOriginalRolePermissions(JSON.parse(JSON.stringify(permissions)));
@@ -271,7 +271,7 @@ export default function OrganisationSettingsForm() {
       data.append("ward", selectedWard);
       if (logo) data.append("logo", logo);
 
-      await axios.post(`${API}/api/organisation-settings/save`, data);
+      await api.post("/organisation-settings/save", data);
       toast.success("✅ Organisation settings updated successfully");
 
       setLogo(null);
@@ -360,7 +360,7 @@ export default function OrganisationSettingsForm() {
 
   const handleDiscard = async () => {
     try {
-      await axios.delete(`${API}/api/organisation-settings/discard`);
+      await api.delete("/organisation-settings/discard");
       toast.success("✅ Discarded successfully");
 
       // Reset form to empty state
@@ -412,7 +412,7 @@ export default function OrganisationSettingsForm() {
 
   const handleDeletePaymentMethod = async (id: number) => {
     try {
-      await axios.delete(`${API}/api/organization/payment-methods/${id}`);
+      await api.delete(`/organization/payment-methods/${id}`);
       await fetchPaymentMethods();
       toast.success("✅ Payment method deleted successfully");
     } catch (e) {
@@ -434,13 +434,13 @@ export default function OrganisationSettingsForm() {
       };
 
       if (editingId) {
-        await axios.put(
-          `${API}/api/organization/payment-methods/${editingId}`,
+        await api.put(
+          `/organization/payment-methods/${editingId}`,
           payload
         );
         toast.success("✅ Payment method updated successfully");
       } else {
-        await axios.post(`${API}/api/organization/payment-methods`, payload);
+        await api.post("/organization/payment-methods", payload);
         toast.success("✅ Payment method added successfully");
       }
 
@@ -498,7 +498,7 @@ export default function OrganisationSettingsForm() {
         can_archive: p.can_archive,
       }));
 
-      await axios.post(`${API}/api/organization/roles/${selectedRoleId}/permissions`, {
+      await api.post(`/organization/roles/${selectedRoleId}/permissions`, {
         permissions: payload
       });
 

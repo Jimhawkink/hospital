@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import axios from "axios";
+import api from "../api/axios";
 import { useNavigate } from "react-router-dom";
 import { BookAppointmentModal } from "../components/BookAppointmentModal";
 
@@ -130,10 +130,7 @@ export default function EncounterListPage() {
       return;
     }
 
-    const api = axios.create({
-      baseURL: "http://localhost:5000/api",
-      headers: { Authorization: `Bearer ${token}` },
-    });
+
 
     try {
       setLoading(true);

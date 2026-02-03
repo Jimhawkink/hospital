@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import api from "../api/axios";
 
 type Encounter = {
   id: string;
@@ -59,32 +60,20 @@ export default function EncountersPage() {
   }, [searchQuery, encounters, filterStatus, filterType]);
 
   const fetchEncounters = async () => {
-    const token = localStorage.getItem("hms_token");
-    if (!token) {
-      setError("No authentication token found");
-      setLoading(false);
-      return;
-    }
-
-    const headers = {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    };
-
+    setLoading(true);
     try {
-      setLoading(true);
       const [encountersRes, patientsRes, staffRes] = await Promise.all([
-        fetch("http://localhost:5000/api/encounters", { headers }).then(r => r.json()),
-        fetch("http://localhost:5000/api/patients", { headers }).then(r => r.json()),
-        fetch("http://localhost:5000/api/staff", { headers }).then(r => r.json()),
+        api.get("/encounters"),
+        api.get("/patients"),
+        api.get("/staff"),
       ]);
 
-      const encountersData = Array.isArray(encountersRes) 
-        ? encountersRes 
-        : encountersRes?.data || [];
-      
-      const patientsData = Array.isArray(patientsRes) ? patientsRes : [];
-      const staffData = Array.isArray(staffRes) ? staffRes : [];
+      const encountersData = Array.isArray(encountersRes.data)
+        ? encountersRes.data
+        : encountersRes.data?.data || [];
+
+      const patientsData = Array.isArray(patientsRes.data) ? patientsRes.data : [];
+      const staffData = Array.isArray(staffRes.data) ? staffRes.data : [];
 
       const patientMap = patientsData.reduce((map: any, patient: Patient) => {
         map[patient.id] = patient;
@@ -99,7 +88,7 @@ export default function EncountersPage() {
       const enrichedEncounters = encountersData.map((encounter: any) => {
         const patient = patientMap[encounter.patient_id];
         const provider = staffMap[encounter.provider_id];
-        
+
         let age = null;
         if (patient?.dob) {
           const birthDate = new Date(patient.dob);
@@ -411,11 +400,10 @@ export default function EncountersPage() {
                 <button
                   key={pageNum}
                   onClick={() => setCurrentPage(pageNum)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    currentPage === pageNum
-                      ? "bg-blue-600 text-white"
-                      : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-50"
-                  }`}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${currentPage === pageNum
+                    ? "bg-blue-600 text-white"
+                    : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-50"
+                    }`}
                 >
                   {pageNum}
                 </button>
