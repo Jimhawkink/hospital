@@ -1,7 +1,7 @@
 -- Seed file to insert default admin user
 -- Run this in your Supabase SQL Editor
 
-INSERT INTO public.hms_users (name, email, password, role, created_at, updated_at)
+INSERT INTO public.hms_users (name, email, password, role, "createdAt", "updatedAt")
 VALUES (
     'System Admin', 
     'admin@kwh.com', 

@@ -38,6 +38,8 @@ class User extends Model {
     declare email: string;
     declare password: string;
     declare role: string;
+    declare createdAt: Date;
+    declare updatedAt: Date;
 }
 
 // Initialize User model
@@ -70,7 +72,7 @@ const initUserModel = (sequelize: Sequelize) => {
         sequelize,
         tableName: 'hms_users',
         timestamps: true,
-        underscored: true
+        underscored: false
     });
 
     return User;
