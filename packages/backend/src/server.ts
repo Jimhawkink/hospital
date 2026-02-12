@@ -334,7 +334,7 @@ const syncModelWithFallback = async (model: any): Promise<void> => {
     const tableName = typeof model.getTableName === "function" ? model.getTableName() : model.tableName || model.name;
     console.log(`⏳ Attempting to sync model: ${model.name} (table: ${tableName})`);
 
-    await withRetry(() => model.sync({ alter: true }), 5, 500);
+    await withRetry(() => model.sync({ alter: false }), 5, 500);
     console.log(`✅ ${model.name} sync completed`);
   } catch (error) {
     console.warn(`⚠️ Sync for ${model.name} failed, attempting manual table creation...`);
@@ -683,8 +683,8 @@ export const initApp = async () => {
         // Sync independent models first
         await syncModelsSequentially(
           [
-            OrganisationSetting,
             PaymentMethod,
+            OrganisationSetting,
             Product,
             Staff,
             User,

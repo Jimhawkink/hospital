@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { Sequelize, Model, DataTypes } from 'sequelize';
 
 const sequelize = new Sequelize({
@@ -8,7 +9,7 @@ const sequelize = new Sequelize({
   username: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || '',
   logging: console.log,
-  dialectOptions: process.env.NODE_ENV === 'production' ? {
+  dialectOptions: (process.env.NODE_ENV === 'production' || process.env.DB_HOST !== 'localhost') ? {
     ssl: {
       require: true,
       rejectUnauthorized: false

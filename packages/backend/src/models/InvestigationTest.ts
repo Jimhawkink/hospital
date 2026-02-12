@@ -20,6 +20,7 @@ InvestigationTest.init({
   name: {
     type: DataTypes.STRING,
     allowNull: false,
+    unique: true,
   },
   department: {
     type: DataTypes.STRING,
