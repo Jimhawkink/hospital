@@ -13,6 +13,7 @@ export default async (req: VercelRequest, res: VercelResponse) => {
         }
 
         // Forward request to Express
+        console.log(`⚡ Incoming Request: ${req.method} ${req.url}`);
         return serverlessHandler(req, res);
     } catch (error) {
         console.error("❌ Serverless Error:", error);
