@@ -13,10 +13,6 @@
             "destination": "/api/auth/login"
         },
         {
-            "source": "/api/(.*)",
-            "destination": "/api/server"
-        },
-        {
             "source": "/((?!api/|_vercel/|static/|favicon.ico).*)",
             "destination": "/index.html"
         }
