@@ -73,7 +73,28 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
       toast.success("🎉 Welcome back! Login successful");
       nav("/NewDashboardLayout", { state: { fromLogin: true } });
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || "Login failed. Please try again.";
+      console.error("Login Error Details:", err);
+      let errorMessage = "Login failed. Please try again.";
+
+      if (err.response) {
+        // Server responded with a status code
+        const data = err.response.data;
+        if (typeof data === 'string') {
+          errorMessage = `Server Error: ${data.substring(0, 100)}`;
+        } else if (data?.message) {
+          errorMessage = data.message;
+        } else if (data?.error) {
+          errorMessage = `${data.error} ${data.details ? `(${data.details})` : ''}`;
+        } else {
+          errorMessage = `Request failed with status ${err.response.status}`;
+        }
+      } else if (err.request) {
+        // Request made but no response
+        errorMessage = "Network Error: No response from server. Check connection.";
+      } else {
+        errorMessage = err.message || "Unknown Error Occurred";
+      }
+
       setError(errorMessage);
       toast.error(`❌ ${errorMessage}`);
     } finally {
