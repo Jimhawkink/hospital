@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import serverless from 'serverless-http';
-import { initApp } from '../../backend/src/server';
+import { initApp } from '../src/backend_mirror/server';
 
 let serverlessHandler: any;
 
