@@ -614,12 +614,20 @@ const setupRoutes = async (): Promise<void> => {
 // -----------------------------
 // App startup
 // -----------------------------
-(async () => {
+// -----------------------------
+// App startup
+// -----------------------------
+export const initApp = async () => {
   console.log("🔧 Starting application setup...");
 
   try {
     const PORT = process.env.PORT ? Number(process.env.PORT) : 5000;
     const NODE_ENV = process.env.NODE_ENV || "development";
+
+    // In Vercel, we might skip seeding or heavy checks to speed up cold starts
+    // But for now, we'll keep it but be mindful of timeouts.
+    // If VERCEL env is set, we might skip seeding.
+    const isVercel = process.env.VERCEL === '1';
 
     console.log("⏳ Connecting to DB...");
     await sequelize.authenticate();
@@ -650,108 +658,111 @@ const setupRoutes = async (): Promise<void> => {
 
     console.log("✅ Associations set up");
 
-    // ----------------------
-    // Ensure only one process performs schema changes
-    // ----------------------
-    setupExitHandlers(); // Setup exit handlers before acquiring lock
-    console.log("🔐 Acquiring migration lock...");
-    await acquireMigrateLock();
-    console.log("🔐 Migration lock acquired");
+    // Skip heavy migrations/seeding on Vercel to prevent timeout
+    if (!isVercel) {
+      // ----------------------
+      // Ensure only one process performs schema changes
+      // ----------------------
+      setupExitHandlers(); // Setup exit handlers before acquiring lock
+      console.log("🔐 Acquiring migration lock...");
+      await acquireMigrateLock();
+      console.log("🔐 Migration lock acquired");
 
-    // Always try to re-enable FK checks after sync attempts
-    try {
-      console.log("📦 Syncing models with schema updates...");
-
-      // Disable FK checks temporarily for sync (PostgreSQL style)
+      // Always try to re-enable FK checks after sync attempts
       try {
-        await sequelize.query("SET session_replication_role = 'replica'");
-        console.log("🔓 Foreign key checks disabled (session_replication_role=replica)");
-      } catch (fkErr) {
-        console.warn("⚠️ Could not disable foreign key checks:", fkErr);
+        console.log("📦 Syncing models with schema updates...");
+
+        // Disable FK checks temporarily for sync (PostgreSQL style)
+        try {
+          await sequelize.query("SET session_replication_role = 'replica'");
+          console.log("🔓 Foreign key checks disabled (session_replication_role=replica)");
+        } catch (fkErr) {
+          console.warn("⚠️ Could not disable foreign key checks:", fkErr);
+        }
+
+        // Sync independent models first
+        await syncModelsSequentially(
+          [
+            OrganisationSetting,
+            PaymentMethod,
+            Product,
+            Staff,
+            User,
+            Patient,
+            UserRole,
+            Permission,
+            RolePermission,
+            AppointmentType,
+            Stock,
+            Package,
+            Invoice,
+            Payment
+          ],
+          "independent models"
+        );
+
+        // Sync dependent models (with fallbacks)
+        console.log("⏳ Syncing dependent models...");
+        for (const model of [Appointment, Triage, Encounter, Complaint, InvestigationTest, InvestigationRequest, InvestigationResult]) {
+          await syncModelWithFallback(model);
+        }
+
+        console.log("✅ All models synced");
+      } finally {
+        try {
+          await sequelize.query("SET session_replication_role = 'origin'");
+          console.log("🔒 Foreign key checks re-enabled (session_replication_role=origin)");
+        } catch (err) {
+          console.warn("⚠️ Could not re-enable foreign key checks:", err);
+        }
+        // release migration lock so other processes (if any) can proceed
+        await releaseMigrateLock();
+        console.log("🔐 Migration lock released");
       }
 
-      // Sync independent models first
-      await syncModelsSequentially(
-        [
-          OrganisationSetting,
-          PaymentMethod,
-          Product,
-          Staff,
-          User,
-          Patient,
-          UserRole,
-          Permission,
-          RolePermission,
-          AppointmentType,
-          Stock,
-          Package,
-          Invoice,
-          Payment
-        ],
-        "independent models"
-      );
+      // ----------------------
+      // Verify tables exist
+      // ----------------------
+      console.log("🔍 Verifying all tables exist before seeding...");
+      const requiredTables = ["hms_patients", "hms_staff", "hms_triages", "hms_appointments"];
+      const optionalTables = ["hms_encounters", "hms_complaints", "hms_investigation_tests", "hms_investigation_requests", "hms_investigation_results"];
+      let criticalTablesExist = true;
 
-      // Sync dependent models (with fallbacks)
-      console.log("⏳ Syncing dependent models...");
-      for (const model of [Appointment, Triage, Encounter, Complaint, InvestigationTest, InvestigationRequest, InvestigationResult]) {
-        await syncModelWithFallback(model);
+      for (const table of requiredTables) {
+        const exists = await verifyTableExists(table);
+        if (!exists) {
+          console.error(`❌ Required table '${table}' is missing!`);
+          criticalTablesExist = false;
+        }
       }
 
-      // Re-enable foreign key checks in finally below
-
-      console.log("✅ All models synced");
-    } finally {
-      try {
-        await sequelize.query("SET session_replication_role = 'origin'");
-        console.log("🔒 Foreign key checks re-enabled (session_replication_role=origin)");
-      } catch (err) {
-        console.warn("⚠️ Could not re-enable foreign key checks:", err);
+      for (const table of optionalTables) {
+        const exists = await verifyTableExists(table);
+        if (!exists) {
+          console.warn(`⚠️ Optional table '${table}' is missing - some features may not work`);
+        }
       }
-      // release migration lock so other processes (if any) can proceed
-      await releaseMigrateLock();
-      console.log("🔐 Migration lock released");
+
+      if (!criticalTablesExist) {
+        console.error("❌ Critical: Some required tables are missing!");
+        // In production you might want to exit; for dev you might continue.
+        if (NODE_ENV === "production" && !isVercel) process.exit(1);
+      }
+
+      console.log("✅ Table verification complete");
+
+      // ----------------------
+      // Seeding
+      // ----------------------
+      console.log("🌱 Starting seeding...");
+      await seedUsers();
+      await seedPatientsAndTriage(); // Returns result but we ignore
+      await seedEncounters([]); // Pass empty or fetch
+      await seedInvestigationTests();
+      console.log("✅ Seeding complete");
+    } else {
+      console.log("⏩ Vercel environment detected: Skipping migrations and seeding.");
     }
-
-    // ----------------------
-    // Verify tables exist
-    // ----------------------
-    console.log("🔍 Verifying all tables exist before seeding...");
-    const requiredTables = ["hms_patients", "hms_staff", "hms_triages", "hms_appointments"];
-    const optionalTables = ["hms_encounters", "hms_complaints", "hms_investigation_tests", "hms_investigation_requests", "hms_investigation_results"];
-    let criticalTablesExist = true;
-
-    for (const table of requiredTables) {
-      const exists = await verifyTableExists(table);
-      if (!exists) {
-        console.error(`❌ Required table '${table}' is missing!`);
-        criticalTablesExist = false;
-      }
-    }
-
-    for (const table of optionalTables) {
-      const exists = await verifyTableExists(table);
-      if (!exists) {
-        console.warn(`⚠️ Optional table '${table}' is missing - some features may not work`);
-      }
-    }
-
-    if (!criticalTablesExist) {
-      console.error("❌ Critical: Some required tables are missing!");
-      // In production you might want to exit; for dev you might continue.
-      if (NODE_ENV === "production") process.exit(1);
-    }
-
-    console.log("✅ Table verification complete");
-
-    // ----------------------
-    // Seeding
-    // ----------------------
-    console.log("🌱 Starting seeding...");
-    await seedUsers();
-    const patientIds = await seedPatientsAndTriage();
-    await seedEncounters(patientIds);
-    await seedInvestigationTests();
-    console.log("✅ Seeding complete");
 
     // ----------------------
     // Middleware & routes
@@ -763,21 +774,31 @@ const setupRoutes = async (): Promise<void> => {
     const { errorHandler } = await import("./middleware/errorHandler");
     app.use(errorHandler);
 
-    // start server
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running at http://localhost:${PORT}`);
-      console.log("✅ All systems ready");
-    });
+    return app;
+
   } catch (error) {
     console.error("❌ Server setup error:", error);
     // ensure migration lock release if something blew up before release
     try {
       await releaseMigrateLock();
     } catch { }
-    process.exit(1);
+    if (!process.env.VERCEL) process.exit(1);
+    throw error;
   }
-})().catch((err) => {
-  console.error("❌ Failed to start server:", err);
-  process.exit(1);
-});
-// Trigger Vercel deployment
+};
+
+// Check if run directly
+if (require.main === module) {
+  initApp().then((appInstance) => {
+    const PORT = process.env.PORT ? Number(process.env.PORT) : 5000;
+    if (appInstance) {
+      appInstance.listen(PORT, () => {
+        console.log(`🚀 Server running at http://localhost:${PORT}`);
+        console.log("✅ All systems ready");
+      });
+    }
+  }).catch((err) => {
+    console.error("❌ Failed to start server:", err);
+    process.exit(1);
+  });
+}
