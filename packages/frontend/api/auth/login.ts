@@ -2,6 +2,8 @@
 // Authenticates against Supabase PostgreSQL hms_users table
 
 import { Sequelize, DataTypes, Model } from 'sequelize';
+// @ts-ignore
+import * as pg from 'pg';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
@@ -17,6 +19,7 @@ const getSequelize = () => {
         try {
             _sequelize = new Sequelize({
                 dialect: 'postgres',
+                dialectModule: pg,
                 host: process.env.DB_HOST || 'localhost',
                 port: parseInt(process.env.DB_PORT || '6543'),
                 database: process.env.DB_NAME || 'postgres',
