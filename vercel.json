@@ -1,13 +1,12 @@
 {
     "version": 2,
-    "framework": "vite",
-    "installCommand": "cd packages/frontend && npm install",
+    "installCommand": "npm install && cd packages/backend && npm install && cd ../frontend && npm install",
     "buildCommand": "cd packages/frontend && npm run build",
     "outputDirectory": "packages/frontend/dist",
     "functions": {
         "api/**/*.ts": {
-            "memory": 256,
-            "maxDuration": 30
+            "maxDuration": 30,
+            "includeFiles": "packages/backend/src/**"
         }
     },
     "rewrites": [
