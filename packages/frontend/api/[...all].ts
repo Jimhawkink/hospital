@@ -12,8 +12,13 @@ export default async (req: VercelRequest, res: VercelResponse) => {
             serverlessHandler = serverless(app);
         }
 
-        // Forward request to Express
-        console.log(`⚡ Incoming Request: ${req.method} ${req.url}`);
+        // Vercel strips /api prefix when routing to functions in api/ directory.
+        // Express routes are registered with /api prefix, so we must restore it.
+        const originalUrl = req.url || '';
+        if (!originalUrl.startsWith('/api')) {
+            req.url = `/api${originalUrl}`;
+        }
+        console.log(`⚡ Incoming Request: ${req.method} ${originalUrl} -> ${req.url}`);
         return serverlessHandler(req, res);
     } catch (error) {
         console.error("❌ Serverless Error:", error);
