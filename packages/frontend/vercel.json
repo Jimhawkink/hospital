@@ -9,10 +9,6 @@
     },
     "rewrites": [
         {
-            "source": "/api/auth/login",
-            "destination": "/api/auth/login"
-        },
-        {
             "source": "/((?!api/|_vercel/|static/|favicon.ico).*)",
             "destination": "/index.html"
         }
