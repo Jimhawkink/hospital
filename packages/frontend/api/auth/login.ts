@@ -13,30 +13,36 @@ let _sequelize: Sequelize | null = null;
 
 const getSequelize = () => {
     if (!_sequelize) {
-        _sequelize = new Sequelize({
-            dialect: 'postgres',
-            host: process.env.DB_HOST || 'localhost',
-            port: parseInt(process.env.DB_PORT || '6543'),
-            database: process.env.DB_NAME || 'postgres',
-            username: process.env.DB_USER || 'postgres',
-            password: process.env.DB_PASSWORD || '',
-            logging: false,
-            dialectOptions: {
-                ssl: {
-                    require: true,
-                    rejectUnauthorized: false,
+        console.log('🔌 Initializing Sequelize connection...');
+        try {
+            _sequelize = new Sequelize({
+                dialect: 'postgres',
+                host: process.env.DB_HOST || 'localhost',
+                port: parseInt(process.env.DB_PORT || '6543'),
+                database: process.env.DB_NAME || 'postgres',
+                username: process.env.DB_USER || 'postgres',
+                password: process.env.DB_PASSWORD || '',
+                logging: false,
+                dialectOptions: {
+                    ssl: {
+                        require: true,
+                        rejectUnauthorized: false,
+                    },
+                    connectTimeout: 10000,
                 },
-                connectTimeout: 10000,
-            },
-            pool: {
-                max: 2,
-                min: 0,
-                acquire: 30000,
-                idle: 10000,
-            },
-        });
+                pool: {
+                    max: 2,
+                    min: 0,
+                    acquire: 30000,
+                    idle: 10000,
+                },
+            });
+        } catch (error) {
+            console.error('❌ Sequelize Init Error:', error);
+            throw error;
+        }
     }
-    return _sequelize;
+    return _sequelize as Sequelize;
 };
 
 // User model matching hms_users table
@@ -83,6 +89,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
 
     if (req.method === 'OPTIONS') return res.status(200).end();
+
+    console.log(`📥 API Request: ${req.method} ${req.url}`);
+    console.log('Environment Debug:', {
+        DB_HOST: process.env.DB_HOST ? 'Set' : 'Missing',
+        DB_USER: process.env.DB_USER || 'Default (postgres)',
+        DB_PORT: process.env.DB_PORT,
+        DB_NAME: process.env.DB_NAME
+    });
+
     if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
 
     try {
@@ -142,9 +157,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
     } catch (error: any) {
         console.error('❌ Login handler error:', error);
+
+        // DEBUG: Return full error details even in production
         return res.status(500).json({
-            message: 'Server error during login',
-            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal error',
+            message: `Login Error: ${error.message}`,
+            details: error.stack,
+            envCheck: {
+                hasDBHost: !!process.env.DB_HOST,
+                hasDBUser: !!process.env.DB_USER,
+                hasDBPass: !!process.env.DB_PASSWORD
+            }
         });
     }
 }
