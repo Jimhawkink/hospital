@@ -65,7 +65,7 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
     setIsLoading(true);
     setError("");
     try {
-      const res = await api.post("/auth/login", { email, password });
+      const res = await api.post("/auth-v2/login", { email, password });
       const data = res.data as any;
       localStorage.setItem("hms_token", data.token);
       localStorage.setItem("hms_user", JSON.stringify(data.user));

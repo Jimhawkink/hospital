@@ -600,7 +600,7 @@ const setupRoutes = async (): Promise<void> => {
   };
 
   // Register routes
-  registerRoute("/api/auth", "authRoutes", authRoutes);
+  registerRoute("/api/auth-v2", "authRoutes", authRoutes);
   registerRoute("/api/patients", "patientRoutes", patientRoutes);
   registerRoute("/api/appointments", "appointmentRoutes", appointmentRoutes);
   registerRoute("/api/appointment-types", "appointmentTypeRoutes", appointmentTypeRoutes);
