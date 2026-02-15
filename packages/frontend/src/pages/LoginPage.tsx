@@ -78,21 +78,41 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
 
       if (err.response) {
         // Server responded with a status code
+        const status = err.response.status;
         const data = err.response.data;
-        if (typeof data === 'string') {
-          errorMessage = `Server Error: ${data.substring(0, 100)}`;
-        } else if (data?.message) {
-          errorMessage = data.message;
-        } else if (data?.error) {
-          errorMessage = `${data.error} ${data.details ? `(${data.details})` : ''}`;
+
+        if (status === 401) {
+          errorMessage = "Invalid email or password. Please try again.";
+        } else if (typeof data === 'string') {
+          // Could be HTML error page from Vercel
+          if (data.trim().startsWith('<') || data.trim().startsWith('<!')) {
+            errorMessage = `Server Error (${status}): The server returned an unexpected response. Please try again later.`;
+          } else {
+            errorMessage = data.substring(0, 150);
+          }
+        } else if (data && typeof data === 'object') {
+          if (typeof data.message === 'string') {
+            errorMessage = data.message;
+          } else if (typeof data.error === 'string') {
+            errorMessage = `${data.error}${typeof data.details === 'string' ? ` (${data.details})` : ''}`;
+          } else if (typeof data.details === 'string') {
+            errorMessage = data.details;
+          } else {
+            // Fallback: try to stringify, but cap the length
+            try {
+              errorMessage = `Server Error (${status}): ${JSON.stringify(data).substring(0, 150)}`;
+            } catch {
+              errorMessage = `Server Error (${status}): An unexpected error occurred.`;
+            }
+          }
         } else {
-          errorMessage = `Request failed with status ${err.response.status}`;
+          errorMessage = `Request failed with status ${status}`;
         }
       } else if (err.request) {
         // Request made but no response
-        errorMessage = "Network Error: No response from server. Check connection.";
+        errorMessage = "Network Error: Could not connect to server. Please check your connection.";
       } else {
-        errorMessage = err.message || "Unknown Error Occurred";
+        errorMessage = typeof err.message === 'string' ? err.message : "Unknown Error Occurred";
       }
 
       setError(errorMessage);

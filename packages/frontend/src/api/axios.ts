@@ -23,8 +23,12 @@ api.interceptors.response.use(
     if (error && typeof error === 'object' && 'response' in error) {
       const axiosError = error as any;
       if (axiosError.response?.status === 401) {
-        localStorage.removeItem("hms_token");
-        window.location.href = "/login";
+        // Don't redirect if we're already on the login page or making a login request
+        const isLoginRequest = axiosError.config?.url?.includes('/auth') || axiosError.config?.url?.includes('/login');
+        if (!isLoginRequest) {
+          localStorage.removeItem("hms_token");
+          window.location.href = "/login";
+        }
       }
       if (axiosError.response?.status && axiosError.response.status >= 500) {
         console.error("Server error:", axiosError.response.data);
