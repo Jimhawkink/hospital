@@ -1,12 +1,12 @@
 {
     "version": 2,
     "installCommand": "npm install && cd packages/backend && npm install && cd ../frontend && npm install",
-    "buildCommand": "cd packages/frontend && npm run build",
+    "buildCommand": "cd packages/backend && npm run build && cd ../frontend && npm run build",
     "outputDirectory": "packages/frontend/dist",
     "functions": {
-        "api/**/*.ts": {
+        "api/**/*.{ts,js}": {
             "maxDuration": 30,
-            "includeFiles": "packages/backend/src/**"
+            "includeFiles": "packages/backend/**"
         }
     },
     "rewrites": [

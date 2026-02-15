@@ -16,7 +16,7 @@ export default async (req: VercelRequest, res: VercelResponse) => {
             console.log("⚡ Initializing Serverless Backend...");
             try {
                 const serverless = (await import('serverless-http')).default;
-                const { initApp } = await import('../packages/backend/src/server');
+                const { initApp } = await import('../packages/backend/dist/server');
                 const app = await initApp();
                 serverlessHandler = serverless(app);
                 console.log("✅ Serverless Backend initialized successfully");
