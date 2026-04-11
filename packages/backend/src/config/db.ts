@@ -1,20 +1,33 @@
 import 'dotenv/config';
-import { Sequelize, Model, DataTypes } from 'sequelize';
+import { Sequelize } from 'sequelize';
+
+// Use env vars with production Supabase fallback
+const DB_HOST = process.env.DB_HOST || 'aws-1-eu-west-1.pooler.supabase.com';
+const DB_PORT = parseInt(process.env.DB_PORT || '5432');
+const DB_NAME = process.env.DB_NAME || 'postgres';
+const DB_USER = process.env.DB_USER || 'postgres.enlqpifpxuecxxozyiak';
+const DB_PASSWORD = process.env.DB_PASSWORD || '@JIm47jhC_7%#';
 
 const sequelize = new Sequelize({
   dialect: 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432'),
-  database: process.env.DB_NAME || 'postgres',
-  username: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || '',
-  logging: console.log,
-  dialectOptions: (process.env.NODE_ENV === 'production' || process.env.DB_HOST !== 'localhost') ? {
+  host: DB_HOST,
+  port: DB_PORT,
+  database: DB_NAME,
+  username: DB_USER,
+  password: DB_PASSWORD,
+  logging: false,
+  dialectOptions: {
     ssl: {
       require: true,
       rejectUnauthorized: false
     }
-  } : {}
+  },
+  pool: {
+    max: 3,
+    min: 0,
+    acquire: 30000,
+    idle: 10000
+  }
 });
 
 export { sequelize };

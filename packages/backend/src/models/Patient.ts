@@ -125,6 +125,14 @@ Patient.init(
       type: DataTypes.STRING,
       field: "next_of_kin_phone",
     },
+    createdAt: {
+      type: DataTypes.DATE,
+      field: "created_at",
+    },
+    updatedAt: {
+      type: DataTypes.DATE,
+      field: "updated_at",
+    },
 
   },
   {
