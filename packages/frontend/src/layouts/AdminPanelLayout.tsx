@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Outlet, NavLink } from "react-router-dom";
 import { 
   FiSettings, 
@@ -15,6 +15,10 @@ import {
 
 
 export default function AdminPanelLayout() {
+  const [facilityOpen, setFacilityOpen] = useState(true);
+  const [inventoryOpen, setInventoryOpen] = useState(true);
+  const [expensesOpen, setExpensesOpen] = useState(true);
+
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center px-4 py-2 my-1 rounded-lg transition-colors ${
       isActive
@@ -50,28 +54,46 @@ export default function AdminPanelLayout() {
           </NavLink>
 
           <div className="mt-4">
-            <div className="flex items-center px-4 py-2 text-slate-500 text-sm font-medium">
-              <span>Summary dashboard</span>
-            </div>
-            <NavLink to="/dashboard/revenue-tracking" className={linkClass}>
-              <FiTrendingUp className="h-5 w-5 flex-shrink-0" />
-              <span className="ml-3">Revenue tracking</span>
-            </NavLink>
-            <NavLink to="/dashboard/data-completion" className={linkClass}>
-              <FiDatabase className="h-5 w-5 flex-shrink-0" />
-              <span className="ml-3">Data completion</span>
-            </NavLink>
+            <button
+              onClick={() => setFacilityOpen(!facilityOpen)}
+              className="flex items-center w-full px-4 py-2 text-slate-500 text-sm font-medium hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
+            >
+              <FiPieChart className="h-4 w-4 mr-2" />
+              <span>Facility Dashboard</span>
+              <FiChevronDown className={`ml-auto h-4 w-4 transition-transform duration-200 ${facilityOpen ? '' : '-rotate-90'}`} />
+            </button>
+            {facilityOpen && (
+              <>
+                <NavLink to="/dashboard/summary-dashboard" className={linkClass}>
+                  <FiBarChart className="h-5 w-5 flex-shrink-0" />
+                  <span className="ml-3">Summary dashboard</span>
+                </NavLink>
+                <NavLink to="/dashboard/revenue-tracking" className={linkClass}>
+                  <FiTrendingUp className="h-5 w-5 flex-shrink-0" />
+                  <span className="ml-3">Revenue tracking</span>
+                </NavLink>
+                <NavLink to="/dashboard/data-completion" className={linkClass}>
+                  <FiDatabase className="h-5 w-5 flex-shrink-0" />
+                  <span className="ml-3">Data completion</span>
+                </NavLink>
+              </>
+            )}
           </div>
 
           <div className="mt-4">
-            <div className="flex items-center px-4 py-2 text-slate-500 text-sm font-medium">
+            <button
+              onClick={() => setInventoryOpen(!inventoryOpen)}
+              className="flex items-center w-full px-4 py-2 text-slate-500 text-sm font-medium hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
+            >
               <span>Inventory</span>
-              <FiChevronDown className="ml-auto h-4 w-4" />
-            </div>
-            <NavLink to="/dashboard/stock-management" className={linkClass}>
-              <FiFolder className="h-5 w-5 flex-shrink-0" />
-              <span className="ml-3">Stock management</span>
-            </NavLink>
+              <FiChevronDown className={`ml-auto h-4 w-4 transition-transform duration-200 ${inventoryOpen ? '' : '-rotate-90'}`} />
+            </button>
+            {inventoryOpen && (
+              <NavLink to="/dashboard/stock-management" className={linkClass}>
+                <FiFolder className="h-5 w-5 flex-shrink-0" />
+                <span className="ml-3">Stock management</span>
+              </NavLink>
+            )}
           </div>
 
           <NavLink to="/dashboard/staff-management" className={linkClass}>
@@ -85,33 +107,31 @@ export default function AdminPanelLayout() {
           </NavLink>
 
           <div className="mt-4">
-            <div className="flex items-center px-4 py-2 text-slate-500 text-sm font-medium">
+            <button
+              onClick={() => setExpensesOpen(!expensesOpen)}
+              className="flex items-center w-full px-4 py-2 text-slate-500 text-sm font-medium hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
+            >
               <span>Expenses</span>
-              <FiChevronDown className="ml-auto h-4 w-4" />
-            </div>
-            <NavLink to="/dashboard/expenses/history" className={linkClass}>
-              <FiBarChart className="h-5 w-5 flex-shrink-0" />
-              <span className="ml-3">Expense history</span>
-            </NavLink>
-            <NavLink to="/dashboard/expenses/summary" className={linkClass}>
-              <FiDollarSign className="h-5 w-5 flex-shrink-0" />
-              <span className="ml-3">Expense summary</span>
-            </NavLink>
+              <FiChevronDown className={`ml-auto h-4 w-4 transition-transform duration-200 ${expensesOpen ? '' : '-rotate-90'}`} />
+            </button>
+            {expensesOpen && (
+              <>
+                <NavLink to="/dashboard/expenses/history" className={linkClass}>
+                  <FiBarChart className="h-5 w-5 flex-shrink-0" />
+                  <span className="ml-3">Expense history</span>
+                </NavLink>
+                <NavLink to="/dashboard/expenses/summary" className={linkClass}>
+                  <FiDollarSign className="h-5 w-5 flex-shrink-0" />
+                  <span className="ml-3">Expense summary</span>
+                </NavLink>
+              </>
+            )}
           </div>
         </nav>
       </aside>
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col">
-        {/* Header with email verification notice */}
-        <div className="bg-blue-50 border-b border-blue-200 px-6 py-3">
-          <div className="flex items-center text-blue-700 text-sm">
-            <span className="mr-2">📧</span>
-            Email verification needed from 29th Jan 2025 to sign in, reset passwords, and receive HMIS updates.
-            <button className="ml-2 text-blue-600 underline">Learn more</button>
-          </div>
-        </div>
-
         {/* Main Content */}
         <main className="p-6 flex-1 overflow-auto">
           <Outlet />
