@@ -7,6 +7,24 @@ import InvestigationPage from './InvestigationPage';
 // Use the shared frontend types
 import { LabRequest, LabResult, LabType } from "../types/investigation";
 
+function getDisplayName() {
+  try {
+    const raw = localStorage.getItem("hms_user");
+    const u = raw ? JSON.parse(raw) : null;
+    return u?.name || [u?.firstName, u?.lastName].filter(Boolean).join(" ") || "Administrator";
+  } catch {
+    return "Administrator";
+  }
+}
+
+function getInitialsFromName(name: string) {
+  const ignore = ["dr", "mr", "mrs", "ms", "prof", "doctor"];
+  const parts = name.split(/\s+/).filter(Boolean).filter((p) => !ignore.includes(p.toLowerCase()));
+  const first = parts[0]?.[0] ?? "";
+  const last = parts[parts.length - 1]?.[0] ?? "";
+  return (first + last).toUpperCase() || "AA";
+}
+
 // ----- Types -----
 // keep triage/patient shapes as you had them
 interface TriageEntry {
@@ -105,6 +123,9 @@ const TriageEncounterPage: React.FC = () => {
   const [latestTriage, setLatestTriage] = useState<TriageEntry | null>(null);
   const [isPatientOverviewVisible, setIsPatientOverviewVisible] = useState(true);
   const [encounterId, setEncounterId] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const displayName = getDisplayName();
+  const userInitials = getInitialsFromName(displayName);
 
   // New state: lab requests and results (use shared types)
   const [labRequests, setLabRequests] = useState<LabRequest[]>([]);
@@ -118,6 +139,11 @@ const TriageEncounterPage: React.FC = () => {
   // Load patients on mount
   useEffect(() => {
     fetchPatients();
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
   }, []);
 
   // --- API helpers ---
@@ -449,6 +475,11 @@ const TriageEncounterPage: React.FC = () => {
   // Dropdown state
   const [isDropdownOpen, setIsDropdownOpen] = useState<{ [key: string]: boolean }>({});
   const toggleDropdown = (id: string) => setIsDropdownOpen(p => ({ ...p, [id]: !p[id] }));
+  const linkClass = (isActive: boolean) =>
+    `flex items-center px-4 py-2 my-1 rounded-lg transition-colors ${isActive
+      ? "bg-blue-100 text-blue-700 border-r-4 border-blue-700"
+      : "text-slate-600 hover:bg-slate-100"
+    }`;
 
   // Render main content
   const renderContent = () => {
@@ -637,19 +668,26 @@ const TriageEncounterPage: React.FC = () => {
 
   // ----- JSX layout (same as your file, truncated in places for readability) -----
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-slate-50">
       {/* Left Sidebar */}
-      <div className={`bg-white text-gray-800 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'w-16' : 'w-64'} shadow-sm`}>
-        <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+      <div className={`bg-white border-r transition-all duration-300 flex flex-col ${isSidebarCollapsed ? 'w-16' : 'w-64'}`}>
+        <div className="p-4 border-b flex items-center justify-between">
           {!isSidebarCollapsed && (
-            <div>
-              <h3 className="font-semibold">Patient encounter</h3>
-              <p className="text-xs text-gray-500 mt-1">Manage your patient's visit information and actions here.</p>
-            </div>
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="flex items-center text-slate-600 hover:text-slate-800 text-sm"
+            >
+              <span className="mr-2">←</span>
+              Back to EMR/HMIS
+            </button>
           )}
-          <button onClick={toggleSidebar} className="text-gray-600 hover:text-gray-800">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isSidebarCollapsed ? "M9 5l7 7-7 7" : "M15 19l-7-7 7-7"} />
+          <button
+            onClick={toggleSidebar}
+            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+            title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <svg className={`w-5 h-5 transition-transform duration-300 ${isSidebarCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
         </div>
@@ -662,21 +700,21 @@ const TriageEncounterPage: React.FC = () => {
           </div>
         </div>
 
-        <nav className="mt-4">
+        <nav className="p-4 overflow-y-auto flex-1">
           {sidebarItems.map(item => (
             <div key={item.id}>
               {item.hasDropdown ? (
                 <div>
                   <button
                     onClick={() => toggleDropdown(item.id)}
-                    className={`w-full flex items-center px-4 py-2 text-sm hover:bg-gray-100 ${activeSection === item.id ? 'bg-gray-100 border-r-2 border-blue-500' : ''} ${isSidebarCollapsed ? 'justify-center' : ''}`}
+                    className={`${linkClass(false)} w-full text-sm ${isSidebarCollapsed ? 'justify-center' : ''}`}
                     title={isSidebarCollapsed ? item.label : undefined}
                   >
                     <span className="w-5 h-5 flex items-center justify-center text-xs">{item.icon}</span>
                     {!isSidebarCollapsed && (
                       <>
-                        <span className="ml-3 flex-1">{item.label}</span>
-                        <svg className={`w-4 h-4 ml-auto text-gray-600 transform ${isDropdownOpen[item.id] ? 'rotate-180' : ''}`} fill="currentColor" viewBox="0 0 20 20">
+                        <span className="ml-3 flex-1 text-left">{item.label}</span>
+                        <svg className={`w-4 h-4 ml-auto text-slate-600 transform ${isDropdownOpen[item.id] ? 'rotate-180' : ''}`} fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                         </svg>
                       </>
@@ -684,14 +722,14 @@ const TriageEncounterPage: React.FC = () => {
                   </button>
 
                   {!isSidebarCollapsed && isDropdownOpen[item.id] && item.subItems && (
-                    <div className="ml-6 mt-1 space-y-1">
+                    <div className="ml-6 mt-1 space-y-1 border-l border-slate-200">
                       {item.subItems.map(subItem => (
                         <button key={subItem.id} onClick={() => {
                           setActiveSection(subItem.component);
                           if (selectedPatient && encounterId) {
                             navigate(`/encounters/investigations/${encounterId}`);
                           }
-                        }} className={`w-full flex items-center px-4 py-2 text-sm hover:bg-gray-100 ${activeSection === subItem.component ? 'bg-gray-100 border-l-2 border-blue-500' : ''}`}>
+                        }} className={`w-full flex items-center px-4 py-2 text-sm hover:bg-slate-100 ${activeSection === subItem.component ? 'bg-blue-50 text-blue-700 border-l-2 border-blue-600' : 'text-slate-600'}`}>
                           <span className="ml-3">{subItem.label}</span>
                         </button>
                       ))}
@@ -699,7 +737,7 @@ const TriageEncounterPage: React.FC = () => {
                   )}
                 </div>
               ) : (
-                <button onClick={() => item.component && setActiveSection(item.component)} className={`w-full flex items-center px-4 py-2 text-sm hover:bg-gray-100 ${activeSection === item.component ? 'bg-gray-100 border-r-2 border-blue-500' : ''} ${isSidebarCollapsed ? 'justify-center' : ''}`} title={isSidebarCollapsed ? item.label : undefined}>
+                <button onClick={() => item.component && setActiveSection(item.component)} className={`${linkClass(activeSection === item.component)} w-full text-sm ${isSidebarCollapsed ? 'justify-center' : ''}`} title={isSidebarCollapsed ? item.label : undefined}>
                   <span className="w-5 h-5 flex items-center justify-center text-xs">{item.icon}</span>
                   {!isSidebarCollapsed && <span className="ml-3">{item.label}</span>}
                 </button>
@@ -712,18 +750,39 @@ const TriageEncounterPage: React.FC = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         <div className="px-6 pb-6">
-          <div className="pt-4 pb-3 flex items-center justify-between">
+          <div className="pt-4 pb-3 flex items-center justify-between gap-4">
             <button
               onClick={() => navigate("/dashboard")}
               className="text-sm text-blue-600 hover:text-blue-800 font-medium"
             >
               ← Back to Main Dashboard
             </button>
+            <div className="flex items-center gap-4">
+              <div className="hidden md:flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-xl">
+                <span className="text-lg">🕐</span>
+                <span className="text-sm font-medium text-slate-700">
+                  {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+              <button className="relative p-2.5 rounded-xl hover:bg-slate-100 transition-colors">
+                <span className="text-xl">🔔</span>
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
+              </button>
+              <div className="flex items-center gap-3 pl-3 border-l border-slate-200">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                  {userInitials}
+                </div>
+                <div className="hidden sm:block text-right">
+                  <p className="text-sm font-semibold text-slate-900">{displayName}</p>
+                  <p className="text-xs text-slate-500">Administrator</p>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="relative mb-4 bg-white border border-gray-200 rounded-lg px-3 py-2">
+          <div className="relative mb-4 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm">
             <div className="flex items-center">
-              <svg className="w-5 h-5 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-slate-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <input
@@ -731,8 +790,20 @@ const TriageEncounterPage: React.FC = () => {
                 placeholder="Search patients by name, phone, or patient number..."
                 value={searchQuery}
                 onChange={handleSearchChange}
-                className="flex-1 border-0 focus:outline-none text-gray-700 bg-transparent"
+                className="flex-1 border-0 focus:outline-none text-slate-700 bg-transparent placeholder:text-slate-400"
               />
+              {searchQuery && (
+                <button
+                  onClick={() => {
+                    setSearchQuery("");
+                    setSearchResults([]);
+                    setShowSearchResults(false);
+                  }}
+                  className="ml-2 px-2 py-1 text-xs rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600"
+                >
+                  Clear
+                </button>
+              )}
             </div>
 
             {showSearchResults && (
