@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 
 function getDisplayName() {
@@ -65,19 +65,38 @@ function Sidebar({ expanded, onToggle }: { expanded: boolean; onToggle: () => vo
         }`}
     >
       {/* Logo Header */}
-      <div className={`flex items-center gap-4 p-5 border-b border-slate-100 ${!expanded && "justify-center p-4"}`}>
-        <div className="relative">
-          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30">
-            <span className="text-2xl">🏥</span>
+      <div className={`flex items-center p-5 border-b border-slate-100 ${!expanded ? "justify-center p-4" : "justify-between"}`}>
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30">
+              <span className="text-2xl">🏥</span>
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white" />
           </div>
-          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white" />
-        </div>
 
-        <div className={`overflow-hidden transition-all duration-300 ${expanded ? "w-auto opacity-100" : "w-0 opacity-0"}`}>
-          <h1 className="font-bold text-slate-900 text-lg whitespace-nowrap">{orgName}</h1>
-          <p className="text-xs text-slate-500 whitespace-nowrap">Healthcare System</p>
+          <div className={`overflow-hidden transition-all duration-300 ${expanded ? "w-auto opacity-100" : "w-0 opacity-0"}`}>
+            <h1 className="font-bold text-slate-900 text-lg whitespace-nowrap">{orgName}</h1>
+            <p className="text-xs text-slate-500 whitespace-nowrap">Healthcare System</p>
+          </div>
         </div>
+        <button
+          onClick={onToggle}
+          className={`p-2 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-all duration-300 ${!expanded ? "hidden" : ""}`}
+          title={expanded ? "Collapse sidebar" : "Expand sidebar"}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+        </button>
       </div>
+      {/* Expand button when collapsed */}
+      {!expanded && (
+        <button
+          onClick={onToggle}
+          className="mx-auto mt-2 p-2 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-all"
+          title="Expand sidebar"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+        </button>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -102,17 +121,6 @@ function Sidebar({ expanded, onToggle }: { expanded: boolean; onToggle: () => vo
         ))}
       </nav>
 
-      {/* Collapse Button */}
-      <div className="p-4 border-t border-slate-100">
-        <button
-          onClick={onToggle}
-          className={`w-full flex items-center gap-3 p-3 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-all duration-300 ${expanded ? "justify-between" : "justify-center"
-            }`}
-        >
-          {expanded && <span className="text-sm font-medium">Collapse</span>}
-          <span className="text-lg">{expanded ? "◀️" : "▶️"}</span>
-        </button>
-      </div>
     </aside>
   );
 }
@@ -181,7 +189,9 @@ function Header({ onSignOut }: { onSignOut: () => void }) {
 // Main Layout
 export default function DashboardLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [expanded, setExpanded] = useState(true);
+  const isTriageRoute = location.pathname.startsWith("/dashboard/triage");
 
   const logout = () => {
     localStorage.removeItem("hms_token");
@@ -191,10 +201,10 @@ export default function DashboardLayout() {
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
-      <Sidebar expanded={expanded} onToggle={() => setExpanded(!expanded)} />
+      {!isTriageRoute && <Sidebar expanded={expanded} onToggle={() => setExpanded(!expanded)} />}
       <div className="flex-1 flex flex-col min-w-0">
-        <Header onSignOut={logout} />
-        <main className="flex-1 p-6 overflow-auto">
+        {!isTriageRoute && <Header onSignOut={logout} />}
+        <main className={`flex-1 overflow-auto ${isTriageRoute ? "" : "p-6"}`}>
           <Outlet />
         </main>
       </div>

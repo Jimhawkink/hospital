@@ -711,41 +711,49 @@ const TriageEncounterPage: React.FC = () => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
-        <div className="py-1 px-4 border-b bg-white relative">
-          <div className="flex items-center">
-            <svg className="w-5 h-5 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input type="text" placeholder="Search patients by name..." value={searchQuery} onChange={handleSearchChange} className="flex-1 border-0 focus:outline-none text-gray-600" />
-            <div className="flex items-center ml-4">
-              <span className="bg-blue-500 text-white px-2 py-1 rounded text-sm mr-2">PO</span>
-              <div className="text-right">
-                <p className="text-sm font-semibold text-gray-800">Dr Product Ops</p>
-                <p className="text-xs text-gray-500">Administrator</p>
-              </div>
-            </div>
+        <div className="px-6 pb-6">
+          <div className="pt-4 pb-3 flex items-center justify-between">
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+            >
+              ← Back to Main Dashboard
+            </button>
           </div>
 
-          {showSearchResults && (
-            <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 shadow-lg z-50 max-h-60 overflow-y-auto">
-              {isSearching ? (
-                <div className="p-4 text-center text-gray-500">Searching...</div>
-              ) : searchResults.length === 0 ? (
-                <div className="p-4 text-center text-gray-500">No patients found</div>
-              ) : (
-                searchResults.map(patient => (
-                  <div key={patient.id} className="p-3 border-b border-gray-100 hover:bg-blue-50 cursor-pointer" onClick={() => handlePatientSelect(patient)}>
-                    <div className="font-medium">{patient.firstName} {patient.lastName}</div>
-                    <div className="text-sm text-gray-600">{patient.gender} • {calculateAge(patient.dob)} years • {patient.phone} • {patient.id}</div>
-                    {patient.areaOfResidence && <div className="text-xs text-gray-500">{patient.areaOfResidence}</div>}
-                  </div>
-                ))
-              )}
+          <div className="relative mb-4 bg-white border border-gray-200 rounded-lg px-3 py-2">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search patients by name, phone, or patient number..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+                className="flex-1 border-0 focus:outline-none text-gray-700 bg-transparent"
+              />
             </div>
-          )}
-        </div>
 
-        <div className="px-6 pb-6">
+            {showSearchResults && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 shadow-lg z-50 max-h-60 overflow-y-auto">
+                {isSearching ? (
+                  <div className="p-4 text-center text-gray-500">Searching...</div>
+                ) : searchResults.length === 0 ? (
+                  <div className="p-4 text-center text-gray-500">No patients found</div>
+                ) : (
+                  searchResults.map(patient => (
+                    <div key={patient.id} className="p-3 border-b border-gray-100 hover:bg-blue-50 cursor-pointer" onClick={() => handlePatientSelect(patient)}>
+                      <div className="font-medium">{patient.firstName} {patient.lastName}</div>
+                      <div className="text-sm text-gray-600">{patient.gender} • {calculateAge(patient.dob)} years • {patient.phone} • {patient.id}</div>
+                      {patient.areaOfResidence && <div className="text-xs text-gray-500">{patient.areaOfResidence}</div>}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
           {renderContent()}
         </div>
       </div>
