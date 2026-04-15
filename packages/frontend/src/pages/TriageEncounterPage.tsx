@@ -476,8 +476,8 @@ const TriageEncounterPage: React.FC = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState<{ [key: string]: boolean }>({});
   const toggleDropdown = (id: string) => setIsDropdownOpen(p => ({ ...p, [id]: !p[id] }));
   const linkClass = (isActive: boolean) =>
-    `flex items-center px-4 py-2 my-1 rounded-lg transition-colors ${isActive
-      ? "bg-blue-100 text-blue-700 border-r-4 border-blue-700"
+    `relative flex items-center px-4 py-2 my-1 rounded-lg transition-colors ${isActive
+      ? "bg-blue-100 text-blue-700"
       : "text-slate-600 hover:bg-slate-100"
     }`;
 
@@ -710,6 +710,9 @@ const TriageEncounterPage: React.FC = () => {
                     className={`${linkClass(false)} w-full text-sm ${isSidebarCollapsed ? 'justify-center' : ''}`}
                     title={isSidebarCollapsed ? item.label : undefined}
                   >
+                    {!isSidebarCollapsed && activeSection === item.id && (
+                      <span className="absolute left-0 top-1 bottom-1 w-1.5 bg-blue-700 rounded-r-full" />
+                    )}
                     <span className="w-5 h-5 flex items-center justify-center text-xs">{item.icon}</span>
                     {!isSidebarCollapsed && (
                       <>
@@ -738,6 +741,9 @@ const TriageEncounterPage: React.FC = () => {
                 </div>
               ) : (
                 <button onClick={() => item.component && setActiveSection(item.component)} className={`${linkClass(activeSection === item.component)} w-full text-sm ${isSidebarCollapsed ? 'justify-center' : ''}`} title={isSidebarCollapsed ? item.label : undefined}>
+                  {!isSidebarCollapsed && activeSection === item.component && (
+                    <span className="absolute left-0 top-1 bottom-1 w-1.5 bg-blue-700 rounded-r-full" />
+                  )}
                   <span className="w-5 h-5 flex items-center justify-center text-xs">{item.icon}</span>
                   {!isSidebarCollapsed && <span className="ml-3">{item.label}</span>}
                 </button>
@@ -750,7 +756,7 @@ const TriageEncounterPage: React.FC = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         <div className="px-6 pb-6">
-          <div className="pt-4 pb-3 flex items-center justify-between gap-4">
+          <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-xl border-b border-slate-100 h-16 flex items-center justify-between gap-4 mb-4 px-4 rounded-xl">
             <button
               onClick={() => navigate("/dashboard")}
               className="text-sm text-blue-600 hover:text-blue-800 font-medium"
@@ -780,7 +786,7 @@ const TriageEncounterPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="relative mb-4 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm">
+          <div className="relative mb-4 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all">
             <div className="flex items-center">
               <svg className="w-5 h-5 text-slate-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -792,6 +798,11 @@ const TriageEncounterPage: React.FC = () => {
                 onChange={handleSearchChange}
                 className="flex-1 border-0 focus:outline-none text-slate-700 bg-transparent placeholder:text-slate-400"
               />
+              {searchQuery.trim().length > 0 && (
+                <span className="text-xs text-slate-400 mr-2 hidden sm:inline">
+                  {isSearching ? "Searching..." : `${searchResults.length} result(s)`}
+                </span>
+              )}
               {searchQuery && (
                 <button
                   onClick={() => {
