@@ -48,6 +48,7 @@ function Sidebar({ expanded, onToggle }: { expanded: boolean; onToggle: () => vo
     { to: "/dashboard/schedule", icon: "📅", label: "Schedule" },
     { to: "/dashboard/messaging", icon: "💬", label: "Messages" },
     { to: "/dashboard/billing", icon: "💳", label: "Billing" },
+    { to: "/dashboard/payments", icon: "💰", label: "Payments" },
     { to: "/dashboard/reports", icon: "📈", label: "Reports" },
     { to: "/dashboard/triage", icon: "🩺", label: "Triage" },
     { to: "/dashboard/organisation-settings", icon: "⚙️", label: "Settings", end: true },

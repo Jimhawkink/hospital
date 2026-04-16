@@ -14,6 +14,7 @@ import EncounterListPage from "./pages/EncounterListPage";
 import AppointmentsPage from "./pages/AppointmentsPage";
 import MessagingPage from "./pages/MessagingPage";
 import BillingPage from "./pages/BillingPage";
+import PaymentsPage from "./pages/PaymentsPage";
 import ReportsPage from "./pages/ReportsPage";
 import ComplaintsPage from "./pages/ComplaintsPage";
 import InvestigationPage from "./pages/InvestigationPage";
@@ -70,6 +71,7 @@ const App: React.FC = () => {
             <Route path="schedule" element={<AppointmentsPage />} />
             <Route path="messaging" element={<MessagingPage />} />
             <Route path="billing" element={<BillingPage />} />
+            <Route path="payments" element={<PaymentsPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="triage" element={<TriageDashboard />} />
             <Route path="encounters/triage/:patientId" element={<PatientEncounterPage />} />

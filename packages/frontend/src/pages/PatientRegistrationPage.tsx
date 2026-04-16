@@ -126,6 +126,14 @@ export default function PatientRegistrationPage() {
   const [checkoutRequestId, setCheckoutRequestId] = useState("");
   const [paymentStatus, setPaymentStatus] = useState<"idle" | "pending" | "success" | "failed" | "cancelled">("idle");
   const [paymentMessage, setPaymentMessage] = useState("");
+  const [registrationFee, setRegistrationFee] = useState<number>(300);
+
+  // Fetch registration fee from backend
+  useEffect(() => {
+    api.get("/payments/registration-fee").then(res => {
+      if (res.data?.fee) setRegistrationFee(res.data.fee);
+    }).catch(() => {});
+  }, []);
 
   const [formData, setFormData] = useState<PatientFormData>({
     first_name: "",
@@ -277,7 +285,7 @@ export default function PatientRegistrationPage() {
     try {
       const response = await api.post("/mpesa/register", {
         phone: paymentPhone,
-        amount: 300,
+        amount: registrationFee,
         accountReference: formData.patient_number || "PATIENT_REG",
         transactionDesc: "Patient Registration",
       });
@@ -302,9 +310,29 @@ export default function PatientRegistrationPage() {
             setPaymentMessage("Payment cancelled by user.");
             return;
           }
-          if ((st.resultCode !== undefined && st.resultCode !== 0) || st.status === "Failed") {
+          // Insufficient balance
+          if (st.resultCode === 1025) {
             setPaymentStatus("failed");
-            setPaymentMessage(st.resultDesc || "Payment failed.");
+            setPaymentMessage("Insufficient M-Pesa balance. Please top up and try again.");
+            return;
+          }
+          // Wrong/Invalid PIN
+          if (st.resultCode === 1001 || st.resultCode === 2001) {
+            setPaymentStatus("failed");
+            setPaymentMessage("Wrong M-Pesa PIN entered. Please try again.");
+            return;
+          }
+          // DS Timeout
+          if (st.resultCode === 1037) {
+            setPaymentStatus("failed");
+            setPaymentMessage("Payment timed out. Please try again.");
+            return;
+          }
+          // Generic failure
+          if ((st.resultCode !== undefined && st.resultCode !== 0) || st.status === "Failed") {
+            const desc = st.resultDesc || "Payment failed.";
+            setPaymentStatus("failed");
+            setPaymentMessage(desc.includes("unresolved") ? "Transaction could not be completed. Please try again." : desc);
             return;
           }
           if (Date.now() - startedAt > 120000) {
@@ -545,13 +573,13 @@ export default function PatientRegistrationPage() {
           <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-teal-50">
               <h3 className="text-lg font-bold text-slate-800">M-Pesa Registration Payment</h3>
-              <p className="text-sm text-slate-500">Patient must pay KSh 300 before registration is saved.</p>
+              <p className="text-sm text-slate-500">Patient must pay KSh {registrationFee} before registration is saved.</p>
             </div>
             <div className="p-6 space-y-4">
               <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 text-sm">
                 <p><span className="font-semibold">Patient:</span> {formData.first_name} {formData.last_name}</p>
                 <p><span className="font-semibold">Patient No:</span> {formData.patient_number || "N/A"}</p>
-                <p><span className="font-semibold">Amount:</span> KSh 300</p>
+                <p><span className="font-semibold">Amount:</span> KSh {registrationFee}</p>
               </div>
               <FormField
                 label="M-Pesa Phone"

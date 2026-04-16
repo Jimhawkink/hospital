@@ -517,7 +517,14 @@ export default async (req: VercelRequest, res: VercelResponse) => {
         const receipt = String(getItem('MpesaReceiptNumber') || '');
         const amount = Number(getItem('Amount') || 0);
         const phone = String(getItem('PhoneNumber') || '');
-        const status = resultCode === 0 ? 'Completed' : (resultCode === 1032 ? 'Cancelled' : 'Failed');
+        const status = resultCode === 0 ? 'Completed'
+          : resultCode === 1032 ? 'Cancelled'
+          : resultCode === 1001 ? 'Failed'  // Wrong PIN
+          : resultCode === 1025 ? 'Failed'  // Insufficient balance
+          : resultCode === 1037 ? 'Failed'  // Timeout / DS timeout
+          : resultCode === 2001 ? 'Failed'  // Invalid PIN
+          : resultCode === 1 ? 'Failed'     // Generic failure
+          : 'Failed';
 
         if (checkoutRequestId) {
           await pool.query(
@@ -540,6 +547,138 @@ export default async (req: VercelRequest, res: VercelResponse) => {
 
         return res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
       }
+    }
+
+    // ========== PAYMENTS ==========
+    if (segments[0] === 'payments') {
+      // Ensure settings table exists for registration fee
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS hms_settings (
+          id SERIAL PRIMARY KEY,
+          key VARCHAR UNIQUE NOT NULL,
+          value TEXT,
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        )
+      `);
+
+      // GET /payments/registration-fee
+      if (segments[1] === 'registration-fee' && method === 'GET') {
+        const r = await pool.query(`SELECT value FROM hms_settings WHERE key = 'registration_fee'`);
+        const fee = r.rows.length > 0 ? Number(r.rows[0].value) : 300;
+        return res.json({ fee });
+      }
+
+      // PUT /payments/registration-fee
+      if (segments[1] === 'registration-fee' && method === 'PUT') {
+        const b = req.body || {};
+        const fee = Number(b.fee);
+        if (!fee || fee < 1) return res.status(400).json({ message: 'Valid fee amount required' });
+        await pool.query(
+          `INSERT INTO hms_settings (key, value, updated_at) VALUES ('registration_fee', $1, NOW())
+           ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+          [String(fee)]
+        );
+        return res.json({ fee, message: 'Registration fee updated' });
+      }
+
+      // GET /payments - list all payments with patient info
+      if (method === 'GET' && segments.length <= 1) {
+        const dateFrom = req.query?.dateFrom as string || '';
+        const dateTo = req.query?.dateTo as string || '';
+        const search = (req.query?.search as string || '').trim();
+
+        let whereClauses: string[] = [];
+        let params: any[] = [];
+        let paramIdx = 1;
+
+        if (dateFrom) {
+          whereClauses.push(`mt.created_at >= $${paramIdx++}`);
+          params.push(`${dateFrom}T00:00:00`);
+        }
+        if (dateTo) {
+          whereClauses.push(`mt.created_at <= $${paramIdx++}`);
+          params.push(`${dateTo}T23:59:59`);
+        }
+        if (search) {
+          whereClauses.push(`(p.first_name ILIKE $${paramIdx} OR p.last_name ILIKE $${paramIdx} OR p.phone ILIKE $${paramIdx} OR CONCAT(p.first_name,' ',p.last_name) ILIKE $${paramIdx} OR mt.phone_number ILIKE $${paramIdx} OR mt.mpesa_receipt_number ILIKE $${paramIdx})`);
+          params.push(`%${search}%`);
+          paramIdx++;
+        }
+
+        const where = whereClauses.length > 0 ? 'AND ' + whereClauses.join(' AND ') : '';
+
+        const r = await pool.query(
+          `SELECT mt.*, p.first_name as patient_first_name, p.last_name as patient_last_name, p.phone as patient_phone, p.id as patient_id
+           FROM mpesa_transactions mt
+           LEFT JOIN hms_patients p ON mt.phone_number = p.phone OR mt.account_reference = p.patient_number
+           WHERE mt.status IS NOT NULL ${where}
+           ORDER BY mt.created_at DESC`,
+          params
+        );
+
+        // Get summary stats
+        const today = new Date().toISOString().slice(0, 10);
+        const stats = await pool.query(`
+          SELECT
+            COUNT(*) FILTER (WHERE mt.status = 'Completed' AND mt.created_at::date = $1) as paid_today,
+            COUNT(*) FILTER (WHERE mt.status = 'Completed') as total_payments,
+            COALESCE(SUM(mt.amount) FILTER (WHERE mt.status = 'Completed' AND mt.created_at::date = $1), 0) as amount_today,
+            COALESCE(SUM(mt.amount) FILTER (WHERE mt.status = 'Completed'), 0) as total_amount,
+            COUNT(*) FILTER (WHERE mt.status = 'Failed') as failed_payments,
+            COUNT(*) FILTER (WHERE mt.status = 'Cancelled') as cancelled_payments
+          FROM mpesa_transactions mt
+        `, [today]);
+
+        // New patients today
+        const newPatientsToday = await pool.query(`SELECT COUNT(*) as count FROM hms_patients WHERE created_at::date = $1`, [today]);
+        // Total patients
+        const totalPatients = await pool.query(`SELECT COUNT(*) as count FROM hms_patients`);
+        // Renewals (patients with registration > 1 year old who made a new payment)
+        const renewals = await pool.query(`
+          SELECT COUNT(DISTINCT p.id) as count
+          FROM hms_patients p
+          JOIN mpesa_transactions mt ON mt.phone_number = p.phone AND mt.status = 'Completed'
+          WHERE p.created_at < NOW() - INTERVAL '1 year' AND mt.created_at::date = $1
+        `, [today]);
+
+        // New user amounts vs renewal amounts
+        const newVsRenewal = await pool.query(`
+          SELECT
+            COALESCE(SUM(mt.amount), 0) FILTER (WHERE p.created_at::date = mt.created_at::date) as new_user_amount,
+            COALESCE(SUM(mt.amount), 0) FILTER (WHERE p.created_at::date != mt.created_at::date) as renewal_amount
+          FROM mpesa_transactions mt
+          JOIN hms_patients p ON mt.phone_number = p.phone
+          WHERE mt.status = 'Completed' AND mt.created_at::date = $1
+        `, [today]);
+
+        // Daily payment trend for charts (last 14 days)
+        const dailyTrend = await pool.query(`
+          SELECT DATE(mt.created_at) as date, COUNT(*) as count, COALESCE(SUM(mt.amount), 0) as total
+          FROM mpesa_transactions mt
+          WHERE mt.status = 'Completed' AND mt.created_at >= NOW() - INTERVAL '14 days'
+          GROUP BY DATE(mt.created_at) ORDER BY DATE(mt.created_at)
+        `);
+
+        return res.json({
+          payments: txAll(r.rows),
+          stats: {
+            paidToday: Number(stats.rows[0]?.paid_today || 0),
+            totalPayments: Number(stats.rows[0]?.total_payments || 0),
+            amountToday: Number(stats.rows[0]?.amount_today || 0),
+            totalAmount: Number(stats.rows[0]?.total_amount || 0),
+            failedPayments: Number(stats.rows[0]?.failed_payments || 0),
+            cancelledPayments: Number(stats.rows[0]?.cancelled_payments || 0),
+            newPatientsToday: Number(newPatientsToday.rows[0]?.count || 0),
+            totalPatients: Number(totalPatients.rows[0]?.count || 0),
+            renewalsToday: Number(renewals.rows[0]?.count || 0),
+            newUsersAmountToday: Number(newVsRenewal.rows[0]?.new_user_amount || 0),
+            renewalAmountToday: Number(newVsRenewal.rows[0]?.renewal_amount || 0),
+          },
+          dailyTrend: txAll(dailyTrend.rows),
+        });
+      }
+
+      return res.status(404).json({ message: 'Payment route not found' });
     }
 
     // ========== PATIENTS ==========
@@ -634,8 +773,11 @@ export default async (req: VercelRequest, res: VercelResponse) => {
           if (!isPaid) {
             return res.status(400).json({ message: 'M-Pesa payment not completed yet.' });
           }
-          if (Number(tx.amount || 0) < 300) {
-            return res.status(400).json({ message: 'Registration fee must be at least KSh 300 via M-Pesa.' });
+          // Get dynamic registration fee
+          const feeRes = await pool.query(`SELECT value FROM hms_settings WHERE key = 'registration_fee'`);
+          const registrationFee = feeRes.rows.length > 0 ? Number(feeRes.rows[0].value) : 300;
+          if (Number(tx.amount || 0) < registrationFee) {
+            return res.status(400).json({ message: `Registration fee must be at least KSh ${registrationFee} via M-Pesa.` });
           }
 
           const client = await pool.connect();
@@ -666,12 +808,12 @@ export default async (req: VercelRequest, res: VercelResponse) => {
             const inv = await client.query(
               `INSERT INTO hms_invoices (patient_id, invoice_number, amount, status, created_at, updated_at)
                VALUES ($1,$2,$3,$4,NOW(),NOW()) RETURNING *`,
-              [patient.id, invoiceNumber, 300, 'paid']
+              [patient.id, invoiceNumber, registrationFee, 'paid']
             );
             await client.query(
               `INSERT INTO hms_payments (invoice_id, amount, method, transaction_code, created_at, updated_at)
                VALUES ($1,$2,$3,$4,NOW(),NOW())`,
-              [inv.rows[0].id, 300, 'mpesa', tx.mpesa_receipt_number || tx.checkout_request_id]
+              [inv.rows[0].id, registrationFee, 'mpesa', tx.mpesa_receipt_number || tx.checkout_request_id]
             );
             await client.query(
               `UPDATE mpesa_transactions
