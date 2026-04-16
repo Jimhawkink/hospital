@@ -7,9 +7,9 @@ import OrganisationSetting from "../models/OrganisationSetting";
 const router = Router();
 
 // Ensure uploads dir exists
-const uploadsRoot = path.join(process.cwd(), "uploads");
+const uploadsRoot = process.env.VERCEL === '1' ? '/tmp' : path.join(process.cwd(), "uploads");
 const orgDir = path.join(uploadsRoot, "organization");
-if (!fs.existsSync(orgDir)) fs.mkdirSync(orgDir, { recursive: true });
+try { if (!fs.existsSync(orgDir)) fs.mkdirSync(orgDir, { recursive: true }); } catch(e) { console.warn("Could not create org upload dir:", e); }
 
 // Multer storage
 const upload = multer({

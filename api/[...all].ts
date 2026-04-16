@@ -20,10 +20,62 @@ const JWT_SECRET = process.env.JWT_SECRET || 'supersecretjwtkey';
 const OTP_EXPIRY_MS = 5 * 60 * 1000;
 const otpStore = new Map<string, { otp: string; expiresAt: number }>();
 
-const EMAIL_USER = process.env.EMAIL_USER;
-const EMAIL_PASS = process.env.EMAIL_PASS;
-const EMAIL_HOST = process.env.EMAIL_HOST || "smtp.gmail.com";
-const EMAIL_PORT = parseInt(process.env.EMAIL_PORT || "587");
+// M-Pesa (Daraja) config (supports multiple env naming styles)
+const MPESA_CONSUMER_KEY = firstEnv('MPESA_CONSUMER_KEY', 'DARAJA_CONSUMER_KEY');
+const MPESA_CONSUMER_SECRET = firstEnv('MPESA_CONSUMER_SECRET', 'DARAJA_CONSUMER_SECRET');
+const MPESA_SHORTCODE = firstEnv('MPESA_SHORTCODE', 'MPESA_BUSINESS_SHORTCODE', 'BUSINESS_SHORT_CODE');
+const MPESA_TILL_NUMBER = firstEnv('MPESA_TILL_NUMBER', 'MPESA_TILL');
+const MPESA_PASSKEY = firstEnv('MPESA_PASSKEY', 'DARAJA_PASSKEY');
+const MPESA_CALLBACK_URL = firstEnv('MPESA_CALLBACK_URL') || 'https://hms-monorepo.vercel.app/api/mpesa/callback';
+const MPESA_ENV = (firstEnv('MPESA_ENV', 'DARAJA_ENV') || 'sandbox').toLowerCase();
+const MPESA_BASE_URL = MPESA_ENV === 'production'
+  ? 'https://api.safaricom.co.ke'
+  : 'https://sandbox.safaricom.co.ke';
+
+// Determine if we're using Till or Paybill
+// Till: use CustomerBuyGoodsOnline, BusinessShortCode = Till Number
+// Paybill: use CustomerPayBillOnline, BusinessShortCode = Shortcode
+const MPESA_IS_TILL = !!MPESA_TILL_NUMBER;
+const MPESA_BUSINESS_CODE = MPESA_IS_TILL ? MPESA_TILL_NUMBER : MPESA_SHORTCODE;
+const MPESA_TRANSACTION_TYPE = MPESA_IS_TILL ? 'CustomerBuyGoodsOnline' : 'CustomerPayBillOnline';
+
+function normalizePhone(phone: string): string {
+  const raw = String(phone || '').replace(/[^\d]/g, '');
+  if (raw.startsWith('254') && raw.length === 12) return raw;
+  if (raw.startsWith('0') && raw.length === 10) return `254${raw.slice(1)}`;
+  if (raw.length === 9 && raw.startsWith('7')) return `254${raw}`;
+  return raw;
+}
+
+async function getMpesaAccessToken(): Promise<string> {
+  if (!MPESA_CONSUMER_KEY || !MPESA_CONSUMER_SECRET) {
+    throw new Error('M-Pesa credentials missing. Set MPESA_CONSUMER_KEY and MPESA_CONSUMER_SECRET.');
+  }
+  const auth = Buffer.from(`${MPESA_CONSUMER_KEY}:${MPESA_CONSUMER_SECRET}`).toString('base64');
+  const resp = await fetch(`${MPESA_BASE_URL}/oauth/v1/generate?grant_type=client_credentials`, {
+    method: 'GET',
+    headers: { Authorization: `Basic ${auth}` },
+  });
+  const data = await resp.json() as any;
+  if (!resp.ok || !data?.access_token) {
+    throw new Error(data?.errorMessage || 'Failed to get M-Pesa access token');
+  }
+  return data.access_token as string;
+}
+
+function firstEnv(...keys: string[]): string {
+  for (const key of keys) {
+    const value = process.env[key];
+    if (value && String(value).trim().length > 0) return String(value).trim();
+  }
+  return '';
+}
+
+const EMAIL_USER = firstEnv('EMAIL_USER', 'SMTP_USER', 'MAIL_USER', 'SMTP_USERNAME');
+const EMAIL_PASS = firstEnv('EMAIL_PASS', 'SMTP_PASS', 'MAIL_PASS', 'EMAIL_PASSWORD', 'SMTP_PASSWORD');
+const EMAIL_HOST = firstEnv('EMAIL_HOST', 'SMTP_HOST', 'MAIL_HOST') || 'smtp.gmail.com';
+const EMAIL_PORT = parseInt(firstEnv('EMAIL_PORT', 'SMTP_PORT', 'MAIL_PORT') || '587', 10);
+const EMAIL_FROM = firstEnv('EMAIL_FROM', 'SMTP_FROM') || EMAIL_USER;
 
 const mailer = (EMAIL_USER && EMAIL_PASS)
   ? nodemailer.createTransport({
@@ -39,13 +91,15 @@ const generateOtp = () => crypto.randomInt(100000, 999999).toString();
 
 async function sendStaffOtp(email: string) {
   if (!mailer || !EMAIL_USER) {
-    throw new Error("Email service not configured. Set EMAIL_USER and EMAIL_PASS.");
+    throw new Error(
+      'SMTP not configured. Set EMAIL_USER/EMAIL_PASS (or SMTP_USER/SMTP_PASS) plus EMAIL_HOST/EMAIL_PORT.'
+    );
   }
   const otp = generateOtp();
   otpStore.set(email.toLowerCase(), { otp, expiresAt: Date.now() + OTP_EXPIRY_MS });
 
   await mailer.sendMail({
-    from: `"Hospital Management System" <${EMAIL_USER}>`,
+    from: `"Hospital Management System" <${EMAIL_FROM}>`,
     to: email,
     subject: "Your OTP for Staff Registration",
     html: `<p>Hello,</p><p>Your OTP is:</p><h2 style="letter-spacing:4px">${otp}</h2><p>This code expires in 5 minutes.</p>`,
@@ -317,6 +371,176 @@ export default async (req: VercelRequest, res: VercelResponse) => {
       return res.status(404).json({ message: 'Auth route not found' });
     }
 
+    // ========== M-PESA ==========
+    if (segments[0] === 'mpesa') {
+      // Ensure mpesa_transactions table exists
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS mpesa_transactions (
+          id SERIAL PRIMARY KEY,
+          checkout_request_id VARCHAR UNIQUE,
+          merchant_request_id VARCHAR,
+          phone_number VARCHAR,
+          amount NUMERIC DEFAULT 0,
+          account_reference VARCHAR,
+          transaction_desc VARCHAR,
+          mpesa_receipt_number VARCHAR,
+          result_code INTEGER,
+          result_desc TEXT,
+          status VARCHAR DEFAULT 'Pending',
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        )
+      `);
+
+      if (segments[1] === 'register' && method === 'POST') {
+        const b = req.body || {};
+        const phone = normalizePhone(String(b.phone || ''));
+        const amount = Number(b.amount || 0);
+        const accountReference = String(b.accountReference || 'HMS_REG').slice(0, 20);
+        const transactionDesc = String(b.transactionDesc || 'Patient Registration Fee').slice(0, 30);
+
+        if (!phone || !/^254\d{9}$/.test(phone)) {
+          return res.status(400).json({ message: 'Valid Kenyan phone is required (2547XXXXXXXX).' });
+        }
+        if (!amount || amount < 1) {
+          return res.status(400).json({ message: 'Valid amount is required.' });
+        }
+        if (!MPESA_BUSINESS_CODE || !MPESA_PASSKEY) {
+          return res.status(500).json({ message: 'M-Pesa not configured. Set MPESA_TILL_NUMBER (or MPESA_SHORTCODE) and MPESA_PASSKEY.' });
+        }
+
+        const token = await getMpesaAccessToken();
+        const timestamp = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
+        const password = Buffer.from(`${MPESA_BUSINESS_CODE}${MPESA_PASSKEY}${timestamp}`).toString('base64');
+
+        const stkPayload: Record<string, any> = {
+          BusinessShortCode: MPESA_BUSINESS_CODE,
+          Password: password,
+          Timestamp: timestamp,
+          TransactionType: MPESA_TRANSACTION_TYPE,
+          Amount: Math.round(amount),
+          PartyA: phone,
+          PartyB: MPESA_BUSINESS_CODE,
+          PhoneNumber: phone,
+          CallBackURL: MPESA_CALLBACK_URL,
+          AccountReference: accountReference,
+          TransactionDesc: transactionDesc,
+        };
+
+        console.log('[MPESA STK] Sending:', JSON.stringify({
+          BusinessShortCode: stkPayload.BusinessShortCode,
+          TransactionType: stkPayload.TransactionType,
+          Amount: stkPayload.Amount,
+          PartyA: stkPayload.PartyA,
+          PartyB: stkPayload.PartyB,
+          env: MPESA_ENV,
+          isTill: MPESA_IS_TILL,
+        }));
+
+        const stkResp = await fetch(`${MPESA_BASE_URL}/mpesa/stkpush/v1/processrequest`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(stkPayload),
+        });
+        const stkData = await stkResp.json() as any;
+        console.log('[MPESA STK] Response:', JSON.stringify(stkData));
+
+        if (!stkResp.ok || stkData?.errorCode || stkData?.ResponseCode === '1' || stkData?.ResponseCode === '2') {
+          const errMsg = stkData?.errorMessage || stkData?.ResponseDescription || stkData?.resultDesc || 'Failed to initiate STK push';
+          return res.status(500).json({
+            message: errMsg,
+            errorCode: stkData?.errorCode || stkData?.ResponseCode,
+            requestId: stkData?.CheckoutRequestID || stkData?.MerchantRequestID,
+          });
+        }
+
+        const checkoutRequestId = String(stkData.CheckoutRequestID || '');
+        const merchantRequestId = String(stkData.MerchantRequestID || '');
+
+        if (checkoutRequestId) {
+          await pool.query(
+            `INSERT INTO mpesa_transactions
+             (checkout_request_id, merchant_request_id, phone_number, amount, account_reference, transaction_desc, status, created_at, updated_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),NOW())
+             ON CONFLICT (checkout_request_id)
+             DO UPDATE SET updated_at=NOW()`,
+            [checkoutRequestId, merchantRequestId, phone, amount, accountReference, transactionDesc, 'Pending']
+          );
+        }
+
+        return res.json({
+          message: 'STK push sent successfully',
+          checkoutRequestId,
+          merchantRequestId,
+        });
+      }
+
+      if (segments[1] === 'status' && method === 'GET') {
+        const checkoutRequestId = String(req.query?.checkoutRequestId || req.query?.checkout_request_id || '');
+        if (!checkoutRequestId) return res.status(400).json({ message: 'checkoutRequestId is required' });
+        const txr = await pool.query(
+          `SELECT * FROM mpesa_transactions WHERE checkout_request_id=$1 ORDER BY created_at DESC LIMIT 1`,
+          [checkoutRequestId]
+        );
+        if (txr.rows.length === 0) return res.status(404).json({ message: 'Transaction not found' });
+        const tx = txr.rows[0];
+        const rc = tx.result_code;
+        const status = tx.status || 'Pending';
+        return res.json({
+          status,
+          resultCode: rc,
+          resultDesc: tx.result_desc,
+          mpesaReceipt: tx.mpesa_receipt_number,
+          amount: tx.amount,
+          phone: tx.phone_number,
+          success: status === 'Completed' || rc === 0,
+        });
+      }
+
+      if (segments[1] === 'callback' && method === 'POST') {
+        const body = req.body || {};
+        const callback = body?.Body?.stkCallback;
+        if (!callback) return res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
+        const resultCode = Number(callback.ResultCode ?? -1);
+        const resultDesc = String(callback.ResultDesc || '');
+        const checkoutRequestId = String(callback.CheckoutRequestID || '');
+        const merchantRequestId = String(callback.MerchantRequestID || '');
+        const items = callback?.CallbackMetadata?.Item || [];
+        const getItem = (name: string) => {
+          const m = items.find((i: any) => i?.Name === name);
+          return m?.Value;
+        };
+        const receipt = String(getItem('MpesaReceiptNumber') || '');
+        const amount = Number(getItem('Amount') || 0);
+        const phone = String(getItem('PhoneNumber') || '');
+        const status = resultCode === 0 ? 'Completed' : (resultCode === 1032 ? 'Cancelled' : 'Failed');
+
+        if (checkoutRequestId) {
+          await pool.query(
+            `INSERT INTO mpesa_transactions
+             (checkout_request_id, merchant_request_id, phone_number, amount, mpesa_receipt_number, result_code, result_desc, status, created_at, updated_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),NOW())
+             ON CONFLICT (checkout_request_id)
+             DO UPDATE SET
+               merchant_request_id=EXCLUDED.merchant_request_id,
+               phone_number=COALESCE(EXCLUDED.phone_number, mpesa_transactions.phone_number),
+               amount=CASE WHEN EXCLUDED.amount > 0 THEN EXCLUDED.amount ELSE mpesa_transactions.amount END,
+               mpesa_receipt_number=COALESCE(EXCLUDED.mpesa_receipt_number, mpesa_transactions.mpesa_receipt_number),
+               result_code=EXCLUDED.result_code,
+               result_desc=EXCLUDED.result_desc,
+               status=EXCLUDED.status,
+               updated_at=NOW()`,
+            [checkoutRequestId, merchantRequestId, phone, amount, receipt || null, resultCode, resultDesc, status]
+          );
+        }
+
+        return res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
+      }
+    }
+
     // ========== PATIENTS ==========
     if (segments[0] === 'patients') {
       if (segments[1] === 'count' && method === 'GET') {
@@ -393,20 +617,75 @@ export default async (req: VercelRequest, res: VercelResponse) => {
         }
         if (method === 'POST') {
           const b = req.body || {};
-          const r = await pool.query(
-            `INSERT INTO hms_patients (first_name, last_name, middle_name, gender, dob, phone, email, occupation,
-             patient_status, heard_about_facility, patient_number, sha_number, county, sub_county, area_of_residence,
-             next_of_kin_first_name, next_of_kin_last_name, next_of_kin_phone, created_at, updated_at)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,NOW(),NOW()) RETURNING *`,
-            [b.firstName||b.first_name, b.lastName||b.last_name, b.middleName||b.middle_name,
-             b.gender, b.dob, b.phone, b.email, b.occupation,
-             b.patientStatus||b.patient_status||'Alive', b.heardAboutFacility||b.heard_about_facility,
-             b.patientNumber||b.patient_number, b.shaNumber||b.sha_number,
-             b.county, b.subCounty||b.sub_county, b.areaOfResidence||b.area_of_residence,
-             b.nextOfKinFirstName||b.next_of_kin_first_name, b.nextOfKinLastName||b.next_of_kin_last_name,
-             b.nextOfKinPhone||b.next_of_kin_phone]
+          const registrationPayment = b.registrationPayment || b.registration_payment;
+          if (!registrationPayment?.checkoutRequestId) {
+            return res.status(400).json({ message: 'Registration payment is required before saving patient.' });
+          }
+          const paymentTx = await pool.query(
+            `SELECT * FROM mpesa_transactions WHERE checkout_request_id=$1 ORDER BY updated_at DESC LIMIT 1`,
+            [registrationPayment.checkoutRequestId]
           );
-          return res.status(201).json(tx(r.rows[0]));
+          if (paymentTx.rows.length === 0) {
+            return res.status(400).json({ message: 'M-Pesa transaction not found. Complete payment first.' });
+          }
+          const tx = paymentTx.rows[0];
+          const isPaid = tx.status === 'Completed' || Number(tx.result_code) === 0;
+          if (!isPaid) {
+            return res.status(400).json({ message: 'M-Pesa payment not completed yet.' });
+          }
+          if (Number(tx.amount || 0) < 300) {
+            return res.status(400).json({ message: 'Registration fee must be at least KSh 300 via M-Pesa.' });
+          }
+
+          const client = await pool.connect();
+          try {
+            await client.query('BEGIN');
+            const gender = String((b.gender || '').toLowerCase());
+            const normalizedGender = gender.startsWith('m') ? 'Male' : gender.startsWith('f') ? 'Female' : 'Other';
+            const heard = b.heardAboutFacility || b.heard_about_facility || null;
+            const patientNumber = b.patientNumber || b.patient_number || null;
+            const shaNumber = b.shaNumber || b.sha_number || null;
+
+            const r = await client.query(
+              `INSERT INTO hms_patients (first_name, last_name, middle_name, gender, dob, phone, email, occupation,
+               patient_status, heard_about_facility, patient_number, sha_number, county, sub_county, area_of_residence,
+               next_of_kin_first_name, next_of_kin_last_name, next_of_kin_phone, created_at, updated_at)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,NOW(),NOW()) RETURNING *`,
+              [b.firstName||b.first_name, b.lastName||b.last_name, b.middleName||b.middle_name,
+               normalizedGender, b.dob, b.phone, b.email, b.occupation,
+               b.patientStatus||b.patient_status||'Alive', heard,
+               patientNumber, shaNumber,
+               b.county, b.subCounty||b.sub_county, b.areaOfResidence||b.area_of_residence,
+               b.nextOfKinFirstName||b.next_of_kin_first_name, b.nextOfKinLastName||b.next_of_kin_last_name,
+               b.nextOfKinPhone||b.next_of_kin_phone]
+            );
+
+            const patient = r.rows[0];
+            const invoiceNumber = `REG-${patient.id}-${Date.now().toString().slice(-6)}`;
+            const inv = await client.query(
+              `INSERT INTO hms_invoices (patient_id, invoice_number, amount, status, created_at, updated_at)
+               VALUES ($1,$2,$3,$4,NOW(),NOW()) RETURNING *`,
+              [patient.id, invoiceNumber, 300, 'paid']
+            );
+            await client.query(
+              `INSERT INTO hms_payments (invoice_id, amount, method, transaction_code, created_at, updated_at)
+               VALUES ($1,$2,$3,$4,NOW(),NOW())`,
+              [inv.rows[0].id, 300, 'mpesa', tx.mpesa_receipt_number || tx.checkout_request_id]
+            );
+            await client.query(
+              `UPDATE mpesa_transactions
+               SET inv_id=$1, invoice_no=$2, updated_at=NOW()
+               WHERE checkout_request_id=$3`,
+              [inv.rows[0].id, invoiceNumber, registrationPayment.checkoutRequestId]
+            );
+            await client.query('COMMIT');
+            return res.status(201).json(tx(patient));
+          } catch (err: any) {
+            await client.query('ROLLBACK');
+            return res.status(500).json({ message: err.message || 'Failed to create patient' });
+          } finally {
+            client.release();
+          }
         }
       }
       return res.status(404).json({ message: 'Patient route not found' });
@@ -481,7 +760,13 @@ export default async (req: VercelRequest, res: VercelResponse) => {
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ message: 'Invalid email format.' });
         const exists = await pool.query('SELECT id FROM hms_users WHERE LOWER(email) = LOWER($1) LIMIT 1', [email]);
         if (exists.rows.length > 0) return res.status(409).json({ message: 'This email is already registered.' });
-        await sendStaffOtp(email);
+        try {
+          await sendStaffOtp(email);
+        } catch (e: any) {
+          return res.status(500).json({
+            message: `Failed to request OTP: ${e?.message || 'SMTP settings are not configured correctly.'}`
+          });
+        }
         return res.json({ message: 'OTP sent to your email.' });
       }
       if (segments.length === 2 && segments[1] === 'resend-otp' && method === 'POST') {
@@ -489,7 +774,13 @@ export default async (req: VercelRequest, res: VercelResponse) => {
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ message: 'Invalid email format.' });
         const exists = await pool.query('SELECT id FROM hms_users WHERE LOWER(email) = LOWER($1) LIMIT 1', [email]);
         if (exists.rows.length > 0) return res.status(409).json({ message: 'This email is already registered.' });
-        await sendStaffOtp(email);
+        try {
+          await sendStaffOtp(email);
+        } catch (e: any) {
+          return res.status(500).json({
+            message: `Failed to resend OTP: ${e?.message || 'SMTP settings are not configured correctly.'}`
+          });
+        }
         return res.json({ message: 'OTP resent to your email.' });
       }
       if (segments.length === 3 && segments[2] === 'active' && method === 'PATCH') {

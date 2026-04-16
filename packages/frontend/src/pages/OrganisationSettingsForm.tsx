@@ -123,7 +123,7 @@ export default function OrganisationSettingsForm() {
           phone: res.data.phone || "",
           address: res.data.address || "",
           email: res.data.email || "",
-          payment_method_id: res.data.payment_method_id || "",
+          payment_method_id: String(res.data.payment_method_id ?? ""),
         };
 
         setFormData({
@@ -142,10 +142,11 @@ export default function OrganisationSettingsForm() {
         setOriginalData(fetchedData);
 
         if (fetchedData.logo_url) {
-          const cleanUrl = fetchedData.logo_url.startsWith("http")
-            ? fetchedData.logo_url
-            : `/${fetchedData.logo_url.replace(/^\/+/, "")}`;
-          setLogoPreview(cleanUrl);
+          if (fetchedData.logo_url.startsWith("data:") || fetchedData.logo_url.startsWith("http")) {
+            setLogoPreview(fetchedData.logo_url);
+          } else {
+            setLogoPreview(`/${fetchedData.logo_url.replace(/^\/+/, "")}`);
+          }
         }
       } else {
         // If no data exists, set empty original data to allow saving
@@ -199,11 +200,17 @@ export default function OrganisationSettingsForm() {
 
   const fetchUserRoles = async () => {
     try {
-      const res = await api.get<UserRole[]>("/organization/roles");
-      setUserRoles(res.data || []);
-      // Auto-select first role if available
-      if (res.data && res.data.length > 0 && !selectedRoleId) {
-        setSelectedRoleId(res.data[0].id);
+      const res = await api.get<any[]>("/organization/roles");
+      const raw = res.data || [];
+      const roles: UserRole[] = raw.map((r: any) => ({
+        id: r.id,
+        role_name: r.role_name || r.roleName || '',
+        description: r.description || '',
+        is_active: r.is_active ?? r.isActive ?? true,
+      }));
+      setUserRoles(roles);
+      if (roles.length > 0 && !selectedRoleId) {
+        setSelectedRoleId(roles[0].id);
       }
     } catch (err) {
       console.error("Error fetching user roles:", err);
@@ -213,8 +220,23 @@ export default function OrganisationSettingsForm() {
 
   const fetchRolePermissions = async (roleId: number) => {
     try {
-      const res = await api.get<RolePermission[]>(`/organization/roles/${roleId}/permissions`);
-      const permissions = res.data || [];
+      const res = await api.get<any[]>(`/organization/roles/${roleId}/permissions`);
+      const raw = res.data || [];
+      // Normalize camelCase API response to snake_case
+      const permissions: RolePermission[] = raw.map((p: any) => ({
+        id: p.id,
+        permission_name: p.permission_name || p.permissionName || '',
+        permission_key: p.permission_key || p.permissionKey || '',
+        category: p.category || null,
+        has_create: p.has_create ?? p.hasCreate ?? false,
+        has_edit: p.has_edit ?? p.hasEdit ?? false,
+        has_view: p.has_view ?? p.hasView ?? false,
+        has_archive: p.has_archive ?? p.hasArchive ?? false,
+        can_create: p.can_create ?? p.canCreate ?? false,
+        can_edit: p.can_edit ?? p.canEdit ?? false,
+        can_view: p.can_view ?? p.canView ?? false,
+        can_archive: p.can_archive ?? p.canArchive ?? false,
+      }));
       setRolePermissions(permissions);
       setOriginalRolePermissions(JSON.parse(JSON.stringify(permissions)));
     } catch (err) {
@@ -241,8 +263,25 @@ export default function OrganisationSettingsForm() {
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setLogo(e.target.files[0]);
-      setLogoPreview(URL.createObjectURL(e.target.files[0]));
+      const file = e.target.files[0];
+      setLogo(file);
+      setLogoPreview(URL.createObjectURL(file));
+      // Compress and convert to base64 for saving to DB
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX = 200; // max dimension
+        let w = img.width, h = img.height;
+        if (w > h) { if (w > MAX) { h = h * MAX / w; w = MAX; } }
+        else { if (h > MAX) { w = w * MAX / h; h = MAX; } }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, w, h);
+        const base64 = canvas.toDataURL('image/jpeg', 0.8);
+        setFormData(prev => ({ ...prev, logo_base64: base64 }));
+      };
+      img.src = URL.createObjectURL(file);
     }
   };
 
@@ -264,12 +303,17 @@ export default function OrganisationSettingsForm() {
     }
 
     try {
-      const data = new FormData();
-      Object.entries(formData).forEach(([key, value]) => data.append(key, value));
-      data.append("county", selectedCounty);
-      data.append("sub_county", selectedSubCounty);
-      data.append("ward", selectedWard);
-      if (logo) data.append("logo", logo);
+      const data: any = {
+        ...formData,
+        county: selectedCounty,
+        sub_county: selectedSubCounty,
+        ward: selectedWard,
+      };
+      // Send base64 logo as logo_url if uploaded
+      if ((formData as any).logo_base64) {
+        data.logo_url = (formData as any).logo_base64;
+        delete data.logo_base64;
+      }
 
       await api.post("/organisation-settings/save", data);
       toast.success("✅ Organisation settings updated successfully");
@@ -296,7 +340,7 @@ export default function OrganisationSettingsForm() {
       phone: formData.phone.trim(),
       address: formData.address.trim(),
       email: formData.email.trim(),
-      payment_method_id: formData.payment_method_id.trim(),
+      payment_method_id: String(formData.payment_method_id ?? "").trim(),
     };
 
     const trimmedOriginalData = {
@@ -307,7 +351,7 @@ export default function OrganisationSettingsForm() {
       phone: (originalData.phone || "").trim(),
       address: (originalData.address || "").trim(),
       email: (originalData.email || "").trim(),
-      payment_method_id: (originalData.payment_method_id || "").trim(),
+      payment_method_id: String(originalData.payment_method_id ?? "").trim(),
     };
 
     // Check if any field has changed
@@ -650,24 +694,37 @@ export default function OrganisationSettingsForm() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Logo</label>
-                <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-xl h-40 w-full cursor-pointer hover:bg-blue-50 transition-all duration-200">
-                  {logoPreview ? (
-                    <img src={logoPreview} alt="Logo Preview" className="h-full object-contain p-2" />
-                  ) : (
-                    <div className="flex flex-col items-center text-slate-500 text-sm">
-                      <Upload className="w-6 h-6 mb-1" />
-                      <p>Click to upload</p>
-                      <p>or drag and drop</p>
+                {logoPreview ? (
+                  <div className="border-2 border-blue-300 rounded-xl h-44 w-full bg-white flex flex-col items-center justify-center p-3">
+                    <img src={logoPreview} alt="Logo" className="max-h-24 max-w-full object-contain rounded-lg mb-2" />
+                    <label className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors text-sm font-medium">
+                      <Upload className="w-4 h-4" />
+                      Change Logo
+                      <input
+                        type="file"
+                        accept="image/png, image/jpeg"
+                        className="hidden"
+                        onChange={handleLogoChange}
+                      />
+                    </label>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-xl h-44 w-full cursor-pointer hover:border-blue-400 transition-all duration-200 bg-white">
+                    <div className="flex flex-col items-center text-sm py-4">
+                      <svg className="w-10 h-10 text-blue-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                      <p className="font-semibold text-slate-700">Click to upload</p>
+                      <p className="text-slate-400 text-xs">or drag and drop</p>
+                      <p className="text-slate-400 text-xs mt-1">PNG, JPG (min. 800×400px)</p>
+                      {logo && <span className="mt-2 px-3 py-1 bg-blue-50 text-blue-600 text-xs rounded-full font-medium">{logo.name}</span>}
                     </div>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/png, image/jpeg"
-                    className="hidden"
-                    onChange={handleLogoChange}
-                  />
-                </label>
+                    <input
+                      type="file"
+                      accept="image/png, image/jpeg"
+                      className="hidden"
+                      onChange={handleLogoChange}
+                    />
+                  </label>
+                )}
               </div>
             </div>
           </div>
@@ -757,18 +814,16 @@ export default function OrganisationSettingsForm() {
           </div>
         </div>
 
-        {/* Organisation Roles & Permissions */}
+        {/* Organisation Roles & Permissions - iLara HMIS Style */}
         <div className="mt-6 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
           <div className="bg-gradient-to-r from-purple-50 to-indigo-50 px-6 py-4 border-b border-slate-100">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                  </svg>
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/20">
+                  <span className="text-lg">🛡️</span>
                 </div>
                 <div>
-                  <h2 className="text-base font-semibold text-slate-800">Organisation Roles & Permissions</h2>
+                  <h2 className="text-base font-bold text-slate-800">Organisation Roles & Permissions</h2>
                   <p className="text-xs text-slate-500">Configure what each role can access</p>
                 </div>
               </div>
@@ -777,7 +832,7 @@ export default function OrganisationSettingsForm() {
                   type="button"
                   onClick={handleSavePermissions}
                   disabled={savingPermissions}
-                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-indigo-700 transform hover:scale-105 transition-all duration-200 text-sm flex items-center gap-2 disabled:opacity-50"
+                  className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-indigo-700 transform hover:scale-105 transition-all duration-200 text-sm flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-purple-500/25"
                 >
                   {savingPermissions ? (
                     <>
@@ -795,106 +850,130 @@ export default function OrganisationSettingsForm() {
             </div>
           </div>
           <div className="p-6">
-            {/* Role Selector */}
+            {/* Role Cards */}
             <div className="mb-6">
-              <label className="text-sm font-medium text-slate-700 mb-2 block">Select user role to edit</label>
-              <select
-                value={selectedRoleId || ""}
-                onChange={(e) => setSelectedRoleId(Number(e.target.value))}
-                className="w-64 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm"
-              >
-                <option value="">Select a role</option>
-                {userRoles.map((role) => (
-                  <option key={role.id} value={role.id}>
-                    {role.role_name}
-                  </option>
-                ))}
-              </select>
+              <label className="text-sm font-semibold text-slate-700 mb-3 block">👤 Select User Role</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {userRoles.map((role) => {
+                  const roleEmojis: Record<string, string> = {
+                    'admin': '👑', 'administrator': '👑', 'doctor': '🩺', 'nurse': '💉',
+                    'receptionist': '🖥️', 'cashier': '💰', 'pharmacist': '💊', 'lab': '🔬',
+                    'radiologist': '📡', 'surgeon': '🏥', 'manager': '📊', 'staff': '👤',
+                  };
+                  const roleColors: Record<string, string> = {
+                    'admin': 'from-amber-500 to-orange-600', 'administrator': 'from-amber-500 to-orange-600',
+                    'doctor': 'from-blue-500 to-indigo-600', 'nurse': 'from-pink-500 to-rose-600',
+                    'receptionist': 'from-teal-500 to-cyan-600', 'cashier': 'from-green-500 to-emerald-600',
+                    'pharmacist': 'from-purple-500 to-violet-600', 'lab': 'from-sky-500 to-blue-600',
+                  };
+                  const key = (role.role_name || role.roleName || '').toLowerCase();
+                  const emoji = roleEmojis[key] || '👤';
+                  const color = roleColors[key] || 'from-slate-500 to-slate-600';
+                  const isSelected = selectedRoleId === role.id;
+
+                  return (
+                    <button
+                      key={role.id}
+                      type="button"
+                      onClick={() => setSelectedRoleId(role.id)}
+                      className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all duration-200 text-left ${
+                        isSelected
+                          ? 'border-purple-500 bg-purple-50 shadow-lg shadow-purple-500/10 scale-[1.02]'
+                          : 'border-slate-200 bg-white hover:border-purple-300 hover:bg-purple-50/50'
+                      }`}
+                    >
+                      <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center text-lg shadow-md flex-shrink-0`}>
+                        {emoji}
+                      </div>
+                      <div className="min-w-0">
+                        <p className={`text-sm font-semibold truncate ${isSelected ? 'text-purple-700' : 'text-slate-700'}`}>
+                          {role.role_name || role.roleName || 'Role'}
+                        </p>
+                        <p className="text-xs text-slate-400 truncate">{role.description || 'User role'}</p>
+                      </div>
+                      {isSelected && (
+                        <div className="ml-auto flex-shrink-0">
+                          <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center">
+                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                          </div>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Permissions Table */}
+            {/* Permissions Grid - iLara Style */}
             {selectedRoleId && rolePermissions.length > 0 && (
-              <div className="overflow-x-auto max-h-[500px] overflow-y-auto border border-slate-200 rounded-xl">
-                <table className="w-full">
-                  <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
-                    <tr>
-                      <th className="text-left py-3 px-6 font-medium text-slate-700 text-sm">Permissions</th>
-                      <th className="text-center py-3 px-6 font-medium text-slate-700 text-sm w-24">Create</th>
-                      <th className="text-center py-3 px-6 font-medium text-slate-700 text-sm w-24">Edit</th>
-                      <th className="text-center py-3 px-6 font-medium text-slate-700 text-sm w-24">View</th>
-                      <th className="text-center py-3 px-6 font-medium text-slate-700 text-sm w-24">Archive</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {rolePermissions.map((perm) => (
-                      <tr key={perm.id} className="hover:bg-purple-50/50">
-                        <td className="py-3 px-6 text-slate-700 text-sm font-medium">
-                          {perm.permission_name}
-                        </td>
-                        <td className="py-3 px-6 text-center">
-                          {perm.has_create ? (
-                            <input
-                              type="checkbox"
-                              checked={perm.can_create}
-                              onChange={() => handlePermissionToggle(perm.id, 'can_create')}
-                              className="w-5 h-5 text-purple-600 border-slate-300 rounded focus:ring-purple-500 cursor-pointer"
-                            />
-                          ) : (
-                            <span className="text-slate-300">—</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-6 text-center">
-                          {perm.has_edit ? (
-                            <input
-                              type="checkbox"
-                              checked={perm.can_edit}
-                              onChange={() => handlePermissionToggle(perm.id, 'can_edit')}
-                              className="w-5 h-5 text-purple-600 border-slate-300 rounded focus:ring-purple-500 cursor-pointer"
-                            />
-                          ) : (
-                            <span className="text-slate-300">—</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-6 text-center">
-                          {perm.has_view ? (
-                            <input
-                              type="checkbox"
-                              checked={perm.can_view}
-                              onChange={() => handlePermissionToggle(perm.id, 'can_view')}
-                              className="w-5 h-5 text-purple-600 border-slate-300 rounded focus:ring-purple-500 cursor-pointer"
-                            />
-                          ) : (
-                            <span className="text-slate-300">—</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-6 text-center">
-                          {perm.has_archive ? (
-                            <input
-                              type="checkbox"
-                              checked={perm.can_archive}
-                              onChange={() => handlePermissionToggle(perm.id, 'can_archive')}
-                              className="w-5 h-5 text-purple-600 border-slate-300 rounded focus:ring-purple-500 cursor-pointer"
-                            />
-                          ) : (
-                            <span className="text-slate-300">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-6 py-3 border-b border-slate-200 grid grid-cols-12 gap-4 items-center">
+                  <div className="col-span-4 text-sm font-bold text-slate-700 flex items-center gap-2">🔐 Permission</div>
+                  <div className="col-span-2 text-center text-sm font-bold text-slate-700">➕ Create</div>
+                  <div className="col-span-2 text-center text-sm font-bold text-slate-700">✏️ Edit</div>
+                  <div className="col-span-2 text-center text-sm font-bold text-slate-700">👁️ View</div>
+                  <div className="col-span-2 text-center text-sm font-bold text-slate-700">📦 Archive</div>
+                </div>
+                {/* Rows */}
+                <div className="max-h-[500px] overflow-y-auto divide-y divide-slate-100">
+                  {(() => {
+                    const permEmojis: Record<string, string> = {
+                      'patient': '🧑‍⚕️', 'encounter': '📋', 'billing': '💳', 'invoice': '🧾',
+                      'payment': '💰', 'stock': '📦', 'pharmacy': '💊', 'lab': '🔬',
+                      'appointment': '📅', 'staff': '👥', 'report': '📊', 'dashboard': '🏠',
+                      'setting': '⚙️', 'role': '🛡️', 'user': '👤', 'triage': '🩺',
+                      'investigation': '🧪', 'complaint': '📝', 'prescription': '💉', 'radiology': '📡',
+                    };
+                    return rolePermissions.map((perm, idx) => {
+                      const permName = perm.permission_name || perm.permissionName || '';
+                      const nameKey = permName.toLowerCase();
+                      const emoji = Object.entries(permEmojis).find(([k]) => nameKey.includes(k))?.[1] || '📄';
+                      return (
+                        <div key={perm.id} className={`grid grid-cols-12 gap-4 items-center px-6 py-3 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'} hover:bg-purple-50/40 transition-colors`}>
+                          <div className="col-span-4 flex items-center gap-3">
+                            <span className="text-lg">{emoji}</span>
+                            <span className="text-sm font-medium text-slate-700">{permName}</span>
+                          </div>
+                          {['can_create', 'can_edit', 'can_view', 'can_archive'].map((field) => {
+                            const hasField = field === 'can_create' ? perm.has_create : field === 'can_edit' ? perm.has_edit : field === 'can_view' ? perm.has_view : perm.has_archive;
+                            const checked = (perm as any)[field];
+                            return (
+                              <div key={field} className="col-span-2 flex justify-center">
+                                {hasField ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePermissionToggle(perm.id, field as any)}
+                                    className={`w-11 h-6 rounded-full transition-all duration-300 relative ${checked ? 'bg-purple-600 shadow-inner shadow-purple-700/30' : 'bg-slate-300'}`}
+                                  >
+                                    <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-300 ${checked ? 'left-[22px]' : 'left-0.5'}`} />
+                                  </button>
+                                ) : (
+                                  <span className="text-slate-300 text-sm">—</span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
               </div>
             )}
 
             {selectedRoleId && rolePermissions.length === 0 && (
-              <div className="text-center py-8 text-slate-500">
-                <p>Loading permissions...</p>
+              <div className="text-center py-12 text-slate-400">
+                <div className="text-4xl mb-3">⏳</div>
+                <p className="font-medium">Loading permissions...</p>
               </div>
             )}
 
             {!selectedRoleId && (
-              <div className="text-center py-8 text-slate-500">
-                <p>Select a role to view and edit permissions</p>
+              <div className="text-center py-12 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
+                <div className="text-4xl mb-3">🛡️</div>
+                <p className="font-semibold text-slate-600">Select a role above</p>
+                <p className="text-sm mt-1">Choose a role to view and configure its permissions</p>
               </div>
             )}
           </div>

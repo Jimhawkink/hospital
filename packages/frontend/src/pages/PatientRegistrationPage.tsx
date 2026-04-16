@@ -120,6 +120,12 @@ export default function PatientRegistrationPage() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isGeneratingPatientNumber, setIsGeneratingPatientNumber] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentPhone, setPaymentPhone] = useState("");
+  const [isInitiatingPayment, setIsInitiatingPayment] = useState(false);
+  const [checkoutRequestId, setCheckoutRequestId] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState<"idle" | "pending" | "success" | "failed" | "cancelled">("idle");
+  const [paymentMessage, setPaymentMessage] = useState("");
 
   const [formData, setFormData] = useState<PatientFormData>({
     first_name: "",
@@ -193,26 +199,7 @@ export default function PatientRegistrationPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Validation
-    const phoneRegex = /^(?:\+254|0)(?:7\d{8}|1\d{8})$/;
-    if (!phoneRegex.test(formData.phone)) {
-      toast.error("📞 Invalid phone number format");
-      return;
-    }
-
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      toast.error("📧 Invalid email format");
-      return;
-    }
-
-    if (!formData.patient_number) {
-      toast.error("🔢 Patient number is required");
-      return;
-    }
-
+  const submitPatientAfterPayment = async (paidCheckoutRequestId: string) => {
     const payload = {
       firstName: formData.first_name,
       middleName: formData.middle_name,
@@ -232,14 +219,21 @@ export default function PatientRegistrationPage() {
       nextOfKinLastName: formData.next_of_kin_last_name,
       nextOfKinPhone: formData.next_of_kin_phone,
       occupation: formData.occupation,
+      registrationPayment: {
+        checkoutRequestId: paidCheckoutRequestId,
+        amount: 300,
+      },
     };
 
+    setIsSubmitting(true);
     try {
-      setIsSubmitting(true);
       await api.post("/patients", payload);
-      toast.success("✅ Patient registered successfully!");
+      toast.success("✅ Payment confirmed and patient registered successfully!");
+      setShowPaymentModal(false);
+      setCheckoutRequestId("");
+      setPaymentStatus("idle");
+      setPaymentMessage("");
 
-      // Reset form
       setFormData({
         first_name: "",
         middle_name: "",
@@ -260,18 +254,107 @@ export default function PatientRegistrationPage() {
         next_of_kin_last_name: "",
         next_of_kin_phone: "",
       });
-
-      // Generate new patient number
       setTimeout(async () => {
         const newNumber = await generatePatientNumber();
         setFormData(prev => ({ ...prev, patient_number: newNumber }));
-      }, 500);
-    } catch (err) {
-      console.error(err);
-      toast.error("❌ Error registering patient");
+      }, 400);
+    } catch (err: any) {
+      const message = err?.response?.data?.message || "Error registering patient";
+      toast.error(`❌ ${message}`);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const startMpesaPayment = async () => {
+    if (!paymentPhone) {
+      toast.error("📞 Enter phone number for M-Pesa");
+      return;
+    }
+    setIsInitiatingPayment(true);
+    setPaymentStatus("pending");
+    setPaymentMessage("Sending STK Push...");
+    try {
+      const response = await api.post("/mpesa/register", {
+        phone: paymentPhone,
+        amount: 300,
+        accountReference: formData.patient_number || "PATIENT_REG",
+        transactionDesc: "Patient Registration",
+      });
+      const id = response.data?.checkoutRequestId;
+      if (!id) throw new Error("Missing checkout request ID");
+      setCheckoutRequestId(id);
+      setPaymentMessage("STK sent. Ask patient to enter M-Pesa PIN.");
+
+      const startedAt = Date.now();
+      const poll = async () => {
+        try {
+          const statusRes = await api.get(`/mpesa/status?checkoutRequestId=${encodeURIComponent(id)}`);
+          const st = statusRes.data || {};
+          if (st.success || st.status === "Completed") {
+            setPaymentStatus("success");
+            setPaymentMessage("Payment received successfully.");
+            await submitPatientAfterPayment(id);
+            return;
+          }
+          if (st.resultCode === 1032 || st.status === "Cancelled") {
+            setPaymentStatus("cancelled");
+            setPaymentMessage("Payment cancelled by user.");
+            return;
+          }
+          if ((st.resultCode !== undefined && st.resultCode !== 0) || st.status === "Failed") {
+            setPaymentStatus("failed");
+            setPaymentMessage(st.resultDesc || "Payment failed.");
+            return;
+          }
+          if (Date.now() - startedAt > 120000) {
+            setPaymentStatus("failed");
+            setPaymentMessage("Payment timeout. Please re-push STK.");
+            return;
+          }
+          setTimeout(poll, 3500);
+        } catch {
+          if (Date.now() - startedAt > 120000) {
+            setPaymentStatus("failed");
+            setPaymentMessage("Unable to confirm payment status.");
+            return;
+          }
+          setTimeout(poll, 3500);
+        }
+      };
+      setTimeout(poll, 3000);
+    } catch (err: any) {
+      setPaymentStatus("failed");
+      setPaymentMessage(err?.response?.data?.message || "Failed to initiate M-Pesa payment.");
+    } finally {
+      setIsInitiatingPayment(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validation
+    const phoneRegex = /^(?:\+254|0)(?:7\d{8}|1\d{8})$/;
+    if (!phoneRegex.test(formData.phone)) {
+      toast.error("📞 Invalid phone number format");
+      return;
+    }
+
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      toast.error("📧 Invalid email format");
+      return;
+    }
+
+    if (!formData.patient_number) {
+      toast.error("🔢 Patient number is required");
+      return;
+    }
+
+    setPaymentPhone(formData.phone);
+    setPaymentStatus("idle");
+    setPaymentMessage("");
+    setShowPaymentModal(true);
   };
 
   return (
@@ -456,6 +539,64 @@ export default function PatientRegistrationPage() {
           </button>
         </div>
       </form>
+
+      {showPaymentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-teal-50">
+              <h3 className="text-lg font-bold text-slate-800">M-Pesa Registration Payment</h3>
+              <p className="text-sm text-slate-500">Patient must pay KSh 300 before registration is saved.</p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 text-sm">
+                <p><span className="font-semibold">Patient:</span> {formData.first_name} {formData.last_name}</p>
+                <p><span className="font-semibold">Patient No:</span> {formData.patient_number || "N/A"}</p>
+                <p><span className="font-semibold">Amount:</span> KSh 300</p>
+              </div>
+              <FormField
+                label="M-Pesa Phone"
+                name="paymentPhone"
+                value={paymentPhone}
+                placeholder="07XXXXXXXX / 2547XXXXXXXX"
+                emoji="📲"
+                onChange={(e) => setPaymentPhone(e.target.value)}
+              />
+              {paymentMessage && (
+                <div className={`text-sm px-3 py-2 rounded-lg border ${
+                  paymentStatus === "success" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                  paymentStatus === "failed" || paymentStatus === "cancelled" ? "bg-red-50 text-red-700 border-red-200" :
+                  "bg-blue-50 text-blue-700 border-blue-200"
+                }`}>
+                  {paymentMessage}
+                </div>
+              )}
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isSubmitting) return;
+                    setShowPaymentModal(false);
+                  }}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={startMpesaPayment}
+                  disabled={isInitiatingPayment || isSubmitting}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-medium hover:bg-emerald-700 disabled:opacity-60"
+                >
+                  {isInitiatingPayment ? "Sending STK..." : paymentStatus === "failed" || paymentStatus === "cancelled" ? "Re-push STK" : "Pay with M-Pesa"}
+                </button>
+              </div>
+              {checkoutRequestId && (
+                <p className="text-[11px] text-slate-400 break-all">Checkout ID: {checkoutRequestId}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <ToastContainer position="top-right" theme="colored" />
     </div>

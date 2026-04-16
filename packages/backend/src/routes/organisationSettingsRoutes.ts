@@ -10,8 +10,9 @@ const router = express.Router();
 // ----------------------
 // Multer config for file upload
 // ----------------------
-const uploadDir = path.join(__dirname, "../../Uploads/logos");
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+const isVercel = process.env.VERCEL === '1';
+const uploadDir = isVercel ? '/tmp/uploads/logos' : path.join(__dirname, "../../Uploads/logos");
+try { if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true }); } catch(e) { console.warn("Could not create upload dir:", e); }
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),

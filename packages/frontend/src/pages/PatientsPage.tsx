@@ -361,14 +361,14 @@ export default function PatientsPage() {
                 {/* First Visit */}
                 <div className="col-span-2 mb-2 lg:mb-0">
                   <p className="text-sm text-slate-600">
-                    {patient.first_encounter ? new Date(patient.first_encounter).toLocaleDateString() : '—'}
+                    {patient.first_encounter ? new Date(patient.first_encounter).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' + new Date(patient.first_encounter).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—'}
                   </p>
                 </div>
 
                 {/* Last Visit */}
                 <div className="col-span-2 mb-2 lg:mb-0">
                   <p className="text-sm text-slate-600">
-                    {patient.last_encounter ? new Date(patient.last_encounter).toLocaleDateString() : '—'}
+                    {patient.last_encounter ? new Date(patient.last_encounter).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' + new Date(patient.last_encounter).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—'}
                   </p>
                 </div>
 

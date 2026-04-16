@@ -264,12 +264,26 @@ export default function DashboardPage() {
     })();
   }, []);
 
-  const filtered = encounters.filter((e) =>
-    e.patient_name.toLowerCase().includes(filter.toLowerCase()) ||
-    e.encounter_number.toLowerCase().includes(filter.toLowerCase()) ||
-    e.encounter_type.toLowerCase().includes(filter.toLowerCase()) ||
-    e.priority_type?.toLowerCase().includes(filter.toLowerCase())
-  );
+  const filtered = encounters.filter((e) => {
+    // Text search filter
+    const matchesSearch = !filter || 
+      e.patient_name.toLowerCase().includes(filter.toLowerCase()) ||
+      e.encounter_number.toLowerCase().includes(filter.toLowerCase()) ||
+      e.encounter_type.toLowerCase().includes(filter.toLowerCase()) ||
+      e.priority_type?.toLowerCase().includes(filter.toLowerCase());
+
+    // Tab filter
+    if (activeTab === 'Priority List') {
+      const p = e.priority_type?.toLowerCase() || '';
+      return matchesSearch && (p === 'high' || p === 'urgent' || p === 'emergency');
+    }
+    if (activeTab === "Today's Appointments") {
+      const today = new Date();
+      const encDate = new Date(e.createdAt);
+      return matchesSearch && encDate.toDateString() === today.toDateString();
+    }
+    return matchesSearch;
+  });
 
   const paginated = filtered.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
   const totalPages = Math.ceil(filtered.length / rowsPerPage) || 1;

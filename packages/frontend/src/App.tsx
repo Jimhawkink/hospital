@@ -27,6 +27,8 @@ import ExpenseHistoryPage from "./pages/ExpenseHistoryPage";
 import ExpenseSummaryPage from "./pages/ExpenseSummaryPage";
 import StaffManagementPage from "./pages/StaffManagementPage";
 import StockManagementPage from "./pages/StockManagementPage";
+import SummaryDashboardPage from "./pages/SummaryDashboardPage";
+import DataCompletionPage from "./pages/DataCompletionPage";
 
 // New Component for Triage Dashboard using TriageEncounterPage
 const TriageDashboard = () => {
@@ -59,7 +61,7 @@ const App: React.FC = () => {
 
       {token ? (
         <>
-          {/* DASHBOARD */}
+          {/* DASHBOARD - Main EMR/HMIS pages */}
           <Route path="/dashboard" element={<DashboardLayout />}>
             <Route index element={<DashboardPage />} />
             <Route path="patients" element={<PatientsPage />} />
@@ -76,14 +78,42 @@ const App: React.FC = () => {
             <Route path="encounters/investigations/:encounterId" element={<InvestigationPage />} />
           </Route>
 
-          {/* ADMIN PANEL WITH ITS OWN LAYOUT */}
-          <Route path="/dashboard" element={<AdminPanelLayout />}>
+          {/* ADMIN PANEL - Settings & Management pages */}
+          <Route path="/admin" element={<AdminPanelLayout />}>
+            <Route index element={<OrganisationSettingsForm />} />
             <Route path="organisation-settings" element={<OrganisationSettingsForm />} />
             <Route path="revenue-tracking" element={<RevenueTrackingPage />} />
             <Route path="expenses/history" element={<ExpenseHistoryPage />} />
             <Route path="expenses/summary" element={<ExpenseSummaryPage />} />
             <Route path="staff-management" element={<StaffManagementPage />} />
             <Route path="stock-management" element={<StockManagementPage />} />
+            <Route path="data-completion" element={<DataCompletionPage />} />
+          </Route>
+
+          {/* Also support /dashboard/organisation-settings by rendering with AdminPanelLayout */}
+          <Route path="/dashboard/organisation-settings" element={<AdminPanelLayout />}>
+            <Route index element={<OrganisationSettingsForm />} />
+          </Route>
+          <Route path="/dashboard/summary-dashboard" element={<AdminPanelLayout />}>
+            <Route index element={<SummaryDashboardPage />} />
+          </Route>
+          <Route path="/dashboard/revenue-tracking" element={<AdminPanelLayout />}>
+            <Route index element={<RevenueTrackingPage />} />
+          </Route>
+          <Route path="/dashboard/staff-management" element={<AdminPanelLayout />}>
+            <Route index element={<StaffManagementPage />} />
+          </Route>
+          <Route path="/dashboard/stock-management" element={<AdminPanelLayout />}>
+            <Route index element={<StockManagementPage />} />
+          </Route>
+          <Route path="/dashboard/expenses/history" element={<AdminPanelLayout />}>
+            <Route index element={<ExpenseHistoryPage />} />
+          </Route>
+          <Route path="/dashboard/expenses/summary" element={<AdminPanelLayout />}>
+            <Route index element={<ExpenseSummaryPage />} />
+          </Route>
+          <Route path="/dashboard/data-completion" element={<AdminPanelLayout />}>
+            <Route index element={<DataCompletionPage />} />
           </Route>
 
           {/* Catch-all when logged in */}

@@ -4,12 +4,19 @@
     "buildCommand": "cd packages/backend && npm run build && cd ../frontend && npm run build",
     "outputDirectory": "packages/frontend/dist",
     "functions": {
-        "api/**/*.{ts,js}": {
+        "api/[...all].ts": {
             "maxDuration": 30,
-            "includeFiles": "packages/backend/**"
+            "includeFiles": "packages/backend/dist/**"
+        },
+        "api/**/*.{ts,js}": {
+            "maxDuration": 30
         }
     },
     "rewrites": [
+        {
+            "source": "/api/:path((?!health|test).*)",
+            "destination": "/api/[...all]"
+        },
         {
             "source": "/((?!api/|_vercel/|static/|favicon.ico).*)",
             "destination": "/index.html"
