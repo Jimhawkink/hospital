@@ -33,11 +33,12 @@ const MPESA_BASE_URL = MPESA_ENV === 'production'
   : 'https://sandbox.safaricom.co.ke';
 
 // Determine if we're using Till or Paybill
-// Till: use CustomerBuyGoodsOnline, BusinessShortCode = Till Number
-// Paybill: use CustomerPayBillOnline, BusinessShortCode = Shortcode
+// For BOTH Till and Paybill: BusinessShortCode = Shortcode (Daraja-registered org code)
+// Till: PartyB = Till Number, TransactionType = CustomerBuyGoodsOnline
+// Paybill: PartyB = Shortcode, TransactionType = CustomerPayBillOnline
 const MPESA_IS_TILL = !!MPESA_TILL_NUMBER;
-const MPESA_BUSINESS_CODE = MPESA_IS_TILL ? MPESA_TILL_NUMBER : MPESA_SHORTCODE;
 const MPESA_TRANSACTION_TYPE = MPESA_IS_TILL ? 'CustomerBuyGoodsOnline' : 'CustomerPayBillOnline';
+const MPESA_PARTY_B = MPESA_IS_TILL ? MPESA_TILL_NUMBER : MPESA_SHORTCODE;
 
 function normalizePhone(phone: string): string {
   const raw = String(phone || '').replace(/[^\d]/g, '');
@@ -405,22 +406,22 @@ export default async (req: VercelRequest, res: VercelResponse) => {
         if (!amount || amount < 1) {
           return res.status(400).json({ message: 'Valid amount is required.' });
         }
-        if (!MPESA_BUSINESS_CODE || !MPESA_PASSKEY) {
-          return res.status(500).json({ message: 'M-Pesa not configured. Set MPESA_TILL_NUMBER (or MPESA_SHORTCODE) and MPESA_PASSKEY.' });
+        if (!MPESA_SHORTCODE || !MPESA_PASSKEY) {
+          return res.status(500).json({ message: 'M-Pesa not configured. Set MPESA_SHORTCODE and MPESA_PASSKEY.' });
         }
 
         const token = await getMpesaAccessToken();
         const timestamp = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
-        const password = Buffer.from(`${MPESA_BUSINESS_CODE}${MPESA_PASSKEY}${timestamp}`).toString('base64');
+        const password = Buffer.from(`${MPESA_SHORTCODE}${MPESA_PASSKEY}${timestamp}`).toString('base64');
 
         const stkPayload: Record<string, any> = {
-          BusinessShortCode: MPESA_BUSINESS_CODE,
+          BusinessShortCode: MPESA_SHORTCODE,
           Password: password,
           Timestamp: timestamp,
           TransactionType: MPESA_TRANSACTION_TYPE,
           Amount: Math.round(amount),
           PartyA: phone,
-          PartyB: MPESA_BUSINESS_CODE,
+          PartyB: MPESA_PARTY_B,
           PhoneNumber: phone,
           CallBackURL: MPESA_CALLBACK_URL,
           AccountReference: accountReference,
