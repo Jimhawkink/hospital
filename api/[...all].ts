@@ -609,99 +609,116 @@ export default async (req: VercelRequest, res: VercelResponse) => {
 
       // GET /payments - list all payments with patient info
       if (method === 'GET' && segments.length <= 1) {
-        const dateFrom = req.query?.dateFrom as string || '';
-        const dateTo = req.query?.dateTo as string || '';
-        const search = (req.query?.search as string || '').trim();
+        try {
+          // Migrate data from old mpesa_transactions table if it exists
+          try {
+            await pool.query(`
+              INSERT INTO hms_mpesa_transactions (checkout_request_id, merchant_request_id, phone_number, amount, account_reference, transaction_desc, mpesa_receipt_number, result_code, result_desc, status, inv_id, invoice_no, created_at, updated_at)
+              SELECT checkout_request_id, merchant_request_id, phone_number, amount, account_reference, transaction_desc, mpesa_receipt_number, result_code, result_desc, status, inv_id, invoice_no, created_at, updated_at
+              FROM mpesa_transactions
+              ON CONFLICT (checkout_request_id) DO NOTHING
+            `);
+          } catch (migErr: any) {
+            console.log('[PAYMENTS MIGRATE] old table not found or empty:', migErr.message);
+          }
 
-        let whereClauses: string[] = [];
-        let params: any[] = [];
-        let paramIdx = 1;
+          const dateFrom = req.query?.dateFrom as string || '';
+          const dateTo = req.query?.dateTo as string || '';
+          const search = (req.query?.search as string || '').trim();
 
-        if (dateFrom) {
-          whereClauses.push(`mt.created_at >= $${paramIdx++}`);
-          params.push(`${dateFrom}T00:00:00`);
+          let whereClauses: string[] = [];
+          let params: any[] = [];
+          let paramIdx = 1;
+
+          if (dateFrom) {
+            whereClauses.push(`mt.created_at >= $${paramIdx++}`);
+            params.push(`${dateFrom}T00:00:00`);
+          }
+          if (dateTo) {
+            whereClauses.push(`mt.created_at <= $${paramIdx++}`);
+            params.push(`${dateTo}T23:59:59`);
+          }
+          if (search) {
+            whereClauses.push(`(p.first_name ILIKE $${paramIdx} OR p.last_name ILIKE $${paramIdx} OR p.phone ILIKE $${paramIdx} OR CONCAT(p.first_name,' ',p.last_name) ILIKE $${paramIdx} OR mt.phone_number ILIKE $${paramIdx} OR mt.mpesa_receipt_number ILIKE $${paramIdx})`);
+            params.push(`%${search}%`);
+            paramIdx++;
+          }
+
+          const where = whereClauses.length > 0 ? 'AND ' + whereClauses.join(' AND ') : '';
+
+          const r = await pool.query(
+            `SELECT mt.*, p.first_name as patient_first_name, p.last_name as patient_last_name, p.phone as patient_phone, p.id as patient_id
+             FROM hms_mpesa_transactions mt
+             LEFT JOIN hms_patients p ON mt.phone_number = p.phone OR mt.account_reference = p.patient_number
+             WHERE mt.status IS NOT NULL ${where}
+             ORDER BY mt.created_at DESC`,
+            params
+          );
+
+          // Get summary stats
+          const today = new Date().toISOString().slice(0, 10);
+          const stats = await pool.query(`
+            SELECT
+              COUNT(*) FILTER (WHERE mt.status = 'Completed' AND mt.created_at::date = $1) as paid_today,
+              COUNT(*) FILTER (WHERE mt.status = 'Completed') as total_payments,
+              COALESCE(SUM(mt.amount) FILTER (WHERE mt.status = 'Completed' AND mt.created_at::date = $1), 0) as amount_today,
+              COALESCE(SUM(mt.amount) FILTER (WHERE mt.status = 'Completed'), 0) as total_amount,
+              COUNT(*) FILTER (WHERE mt.status = 'Failed') as failed_payments,
+              COUNT(*) FILTER (WHERE mt.status = 'Cancelled') as cancelled_payments
+            FROM hms_mpesa_transactions mt
+          `, [today]);
+
+          // New patients today
+          const newPatientsToday = await pool.query(`SELECT COUNT(*) as count FROM hms_patients WHERE created_at::date = $1`, [today]);
+          // Total patients
+          const totalPatients = await pool.query(`SELECT COUNT(*) as count FROM hms_patients`);
+          // Renewals (patients with registration > 1 year old who made a new payment)
+          const renewals = await pool.query(`
+            SELECT COUNT(DISTINCT p.id) as count
+            FROM hms_patients p
+            JOIN hms_mpesa_transactions mt ON mt.phone_number = p.phone AND mt.status = 'Completed'
+            WHERE p.created_at < NOW() - INTERVAL '1 year' AND mt.created_at::date = $1
+          `, [today]);
+
+          // New user amounts vs renewal amounts
+          const newVsRenewal = await pool.query(`
+            SELECT
+              COALESCE(SUM(mt.amount), 0) FILTER (WHERE p.created_at::date = mt.created_at::date) as new_user_amount,
+              COALESCE(SUM(mt.amount), 0) FILTER (WHERE p.created_at::date != mt.created_at::date) as renewal_amount
+            FROM hms_mpesa_transactions mt
+            JOIN hms_patients p ON mt.phone_number = p.phone
+            WHERE mt.status = 'Completed' AND mt.created_at::date = $1
+          `, [today]);
+
+          // Daily payment trend for charts (last 14 days)
+          const dailyTrend = await pool.query(`
+            SELECT DATE(mt.created_at) as date, COUNT(*) as count, COALESCE(SUM(mt.amount), 0) as total
+            FROM hms_mpesa_transactions mt
+            WHERE mt.status = 'Completed' AND mt.created_at >= NOW() - INTERVAL '14 days'
+            GROUP BY DATE(mt.created_at) ORDER BY DATE(mt.created_at)
+          `);
+
+          return res.json({
+            payments: txAll(r.rows),
+            stats: {
+              paidToday: Number(stats.rows[0]?.paid_today || 0),
+              totalPayments: Number(stats.rows[0]?.total_payments || 0),
+              amountToday: Number(stats.rows[0]?.amount_today || 0),
+              totalAmount: Number(stats.rows[0]?.total_amount || 0),
+              failedPayments: Number(stats.rows[0]?.failed_payments || 0),
+              cancelledPayments: Number(stats.rows[0]?.cancelled_payments || 0),
+              newPatientsToday: Number(newPatientsToday.rows[0]?.count || 0),
+              totalPatients: Number(totalPatients.rows[0]?.count || 0),
+              renewalsToday: Number(renewals.rows[0]?.count || 0),
+              newUsersAmountToday: Number(newVsRenewal.rows[0]?.new_user_amount || 0),
+              renewalAmountToday: Number(newVsRenewal.rows[0]?.renewal_amount || 0),
+            },
+            dailyTrend: txAll(dailyTrend.rows),
+          });
+        } catch (err: any) {
+          console.error('[PAYMENTS GET ERROR]', err.message, err.stack);
+          return res.status(500).json({ message: err.message || 'Failed to load payments data' });
         }
-        if (dateTo) {
-          whereClauses.push(`mt.created_at <= $${paramIdx++}`);
-          params.push(`${dateTo}T23:59:59`);
-        }
-        if (search) {
-          whereClauses.push(`(p.first_name ILIKE $${paramIdx} OR p.last_name ILIKE $${paramIdx} OR p.phone ILIKE $${paramIdx} OR CONCAT(p.first_name,' ',p.last_name) ILIKE $${paramIdx} OR mt.phone_number ILIKE $${paramIdx} OR mt.mpesa_receipt_number ILIKE $${paramIdx})`);
-          params.push(`%${search}%`);
-          paramIdx++;
-        }
-
-        const where = whereClauses.length > 0 ? 'AND ' + whereClauses.join(' AND ') : '';
-
-        const r = await pool.query(
-          `SELECT mt.*, p.first_name as patient_first_name, p.last_name as patient_last_name, p.phone as patient_phone, p.id as patient_id
-           FROM hms_mpesa_transactions mt
-           LEFT JOIN hms_patients p ON mt.phone_number = p.phone OR mt.account_reference = p.patient_number
-           WHERE mt.status IS NOT NULL ${where}
-           ORDER BY mt.created_at DESC`,
-          params
-        );
-
-        // Get summary stats
-        const today = new Date().toISOString().slice(0, 10);
-        const stats = await pool.query(`
-          SELECT
-            COUNT(*) FILTER (WHERE mt.status = 'Completed' AND mt.created_at::date = $1) as paid_today,
-            COUNT(*) FILTER (WHERE mt.status = 'Completed') as total_payments,
-            COALESCE(SUM(mt.amount) FILTER (WHERE mt.status = 'Completed' AND mt.created_at::date = $1), 0) as amount_today,
-            COALESCE(SUM(mt.amount) FILTER (WHERE mt.status = 'Completed'), 0) as total_amount,
-            COUNT(*) FILTER (WHERE mt.status = 'Failed') as failed_payments,
-            COUNT(*) FILTER (WHERE mt.status = 'Cancelled') as cancelled_payments
-          FROM hms_mpesa_transactions mt
-        `, [today]);
-
-        // New patients today
-        const newPatientsToday = await pool.query(`SELECT COUNT(*) as count FROM hms_patients WHERE created_at::date = $1`, [today]);
-        // Total patients
-        const totalPatients = await pool.query(`SELECT COUNT(*) as count FROM hms_patients`);
-        // Renewals (patients with registration > 1 year old who made a new payment)
-        const renewals = await pool.query(`
-          SELECT COUNT(DISTINCT p.id) as count
-          FROM hms_patients p
-          JOIN hms_mpesa_transactions mt ON mt.phone_number = p.phone AND mt.status = 'Completed'
-          WHERE p.created_at < NOW() - INTERVAL '1 year' AND mt.created_at::date = $1
-        `, [today]);
-
-        // New user amounts vs renewal amounts
-        const newVsRenewal = await pool.query(`
-          SELECT
-            COALESCE(SUM(mt.amount), 0) FILTER (WHERE p.created_at::date = mt.created_at::date) as new_user_amount,
-            COALESCE(SUM(mt.amount), 0) FILTER (WHERE p.created_at::date != mt.created_at::date) as renewal_amount
-          FROM hms_mpesa_transactions mt
-          JOIN hms_patients p ON mt.phone_number = p.phone
-          WHERE mt.status = 'Completed' AND mt.created_at::date = $1
-        `, [today]);
-
-        // Daily payment trend for charts (last 14 days)
-        const dailyTrend = await pool.query(`
-          SELECT DATE(mt.created_at) as date, COUNT(*) as count, COALESCE(SUM(mt.amount), 0) as total
-          FROM hms_mpesa_transactions mt
-          WHERE mt.status = 'Completed' AND mt.created_at >= NOW() - INTERVAL '14 days'
-          GROUP BY DATE(mt.created_at) ORDER BY DATE(mt.created_at)
-        `);
-
-        return res.json({
-          payments: txAll(r.rows),
-          stats: {
-            paidToday: Number(stats.rows[0]?.paid_today || 0),
-            totalPayments: Number(stats.rows[0]?.total_payments || 0),
-            amountToday: Number(stats.rows[0]?.amount_today || 0),
-            totalAmount: Number(stats.rows[0]?.total_amount || 0),
-            failedPayments: Number(stats.rows[0]?.failed_payments || 0),
-            cancelledPayments: Number(stats.rows[0]?.cancelled_payments || 0),
-            newPatientsToday: Number(newPatientsToday.rows[0]?.count || 0),
-            totalPatients: Number(totalPatients.rows[0]?.count || 0),
-            renewalsToday: Number(renewals.rows[0]?.count || 0),
-            newUsersAmountToday: Number(newVsRenewal.rows[0]?.new_user_amount || 0),
-            renewalAmountToday: Number(newVsRenewal.rows[0]?.renewal_amount || 0),
-          },
-          dailyTrend: txAll(dailyTrend.rows),
-        });
       }
 
       return res.status(404).json({ message: 'Payment route not found' });
@@ -806,6 +823,11 @@ export default async (req: VercelRequest, res: VercelResponse) => {
             return res.status(400).json({ message: `Registration fee must be at least KSh ${registrationFee} via M-Pesa.` });
           }
 
+          // Ensure enum types have the values we need BEFORE starting transaction
+          // (ALTER TYPE ADD VALUE cannot run inside a transaction block)
+          try { await pool.query(`ALTER TYPE enum_hms_payments_method ADD VALUE IF NOT EXISTS 'mpesa'`); } catch(e: any) { console.log('[ENUM] payments_method mpesa:', e.message); }
+          try { await pool.query(`ALTER TYPE enum_hms_invoices_status ADD VALUE IF NOT EXISTS 'paid'`); } catch(e: any) { console.log('[ENUM] invoices_status paid:', e.message); }
+
           const client = await pool.connect();
           try {
             await client.query('BEGIN');
@@ -831,10 +853,6 @@ export default async (req: VercelRequest, res: VercelResponse) => {
 
             const patient = r.rows[0];
             const invoiceNumber = `REG-${patient.id}-${Date.now().toString().slice(-6)}`;
-
-            // Ensure enum types have the values we need (safe to run multiple times)
-            try { await pool.query(`ALTER TYPE enum_hms_payments_method ADD VALUE IF NOT EXISTS 'mpesa'`); } catch(e: any) { console.log('[ENUM] payments_method mpesa:', e.message); }
-            try { await pool.query(`ALTER TYPE enum_hms_invoices_status ADD VALUE IF NOT EXISTS 'paid'`); } catch(e: any) { console.log('[ENUM] invoices_status paid:', e.message); }
 
             const inv = await client.query(
               `INSERT INTO hms_invoices (patient_id, invoice_number, amount, status, created_at, updated_at)
