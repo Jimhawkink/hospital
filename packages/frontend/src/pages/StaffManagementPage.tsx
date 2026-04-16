@@ -192,6 +192,7 @@ export default function ModernStaffManagement() {
   const [formData, setFormData] = useState<StaffFormData>(emptyForm);
   const [otpSent, setOtpSent] = useState(false);
   const [isRequestingOtp, setIsRequestingOtp] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -247,6 +248,29 @@ export default function ModernStaffManagement() {
       toast.success("✅ OTP sent to your email");
     } catch (err) {
       toast.error(`❌ ${err instanceof Error ? err.message : 'Error sending OTP'}`);
+    } finally {
+      setIsRequestingOtp(false);
+    }
+  };
+
+  const resendOtp = async () => {
+    if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      toast.error("📧 Please enter a valid email address");
+      return;
+    }
+    setIsRequestingOtp(true);
+    try {
+      const response = await fetch('/api/staff/resend-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Failed to resend OTP');
+      setOtpSent(true);
+      toast.success("🔁 OTP resent to your email");
+    } catch (err) {
+      toast.error(`❌ ${err instanceof Error ? err.message : 'Error resending OTP'}`);
     } finally {
       setIsRequestingOtp(false);
     }
@@ -444,7 +468,31 @@ export default function ModernStaffManagement() {
               </div>
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <StableFormField label="Username" name="username" value={formData.username} onChange={handleInputChange} placeholder="Enter username" required emoji="👤" />
-                <StableFormField label="Password" name="password" value={formData.password} onChange={handleInputChange} type="password" placeholder="Enter password" required emoji="🔑" />
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
+                    <span>🔑</span> Password <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      placeholder="Enter password"
+                      required
+                      autoComplete="off"
+                      className="w-full px-4 py-3 pr-12 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute inset-y-0 right-3 text-slate-500 hover:text-slate-700 text-sm"
+                      title={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? "🙈" : "👁️"}
+                    </button>
+                  </div>
+                </div>
                 <div className="md:col-span-2">
                   <div className="flex items-end gap-4">
                     <div className="flex-1">
@@ -461,17 +509,31 @@ export default function ModernStaffManagement() {
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all text-sm disabled:bg-slate-100 disabled:text-slate-400"
                       />
                     </div>
-                    <button
-                      type="button"
-                      onClick={requestOtp}
-                      disabled={!isOtpReady || isRequestingOtp || otpSent}
-                      className={`px-6 py-3 rounded-xl text-sm font-medium flex items-center gap-2 transition-all ${isOtpReady && !isRequestingOtp && !otpSent
-                        ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-lg shadow-violet-500/25 hover:shadow-xl'
-                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                        }`}
-                    >
-                      {isRequestingOtp ? '⏳ Sending...' : otpSent ? '✅ OTP Sent' : '📩 Request OTP'}
-                    </button>
+                    {!otpSent ? (
+                      <button
+                        type="button"
+                        onClick={requestOtp}
+                        disabled={!isOtpReady || isRequestingOtp}
+                        className={`px-6 py-3 rounded-xl text-sm font-medium flex items-center gap-2 transition-all ${isOtpReady && !isRequestingOtp
+                          ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-lg shadow-violet-500/25 hover:shadow-xl'
+                          : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                          }`}
+                      >
+                        {isRequestingOtp ? '⏳ Sending...' : '📩 Request OTP'}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={resendOtp}
+                        disabled={!isOtpReady || isRequestingOtp}
+                        className={`px-6 py-3 rounded-xl text-sm font-medium flex items-center gap-2 transition-all ${isOtpReady && !isRequestingOtp
+                          ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/25 hover:bg-amber-600'
+                          : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                          }`}
+                      >
+                        {isRequestingOtp ? '⏳ Resending...' : '🔁 Resend OTP'}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
