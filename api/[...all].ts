@@ -566,6 +566,26 @@ export default async (req: VercelRequest, res: VercelResponse) => {
           updated_at TIMESTAMPTZ DEFAULT NOW()
         )
       `);
+      // Ensure hms_mpesa_transactions table exists
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS hms_mpesa_transactions (
+          id SERIAL PRIMARY KEY,
+          checkout_request_id VARCHAR UNIQUE,
+          merchant_request_id VARCHAR,
+          phone_number VARCHAR,
+          amount NUMERIC DEFAULT 0,
+          account_reference VARCHAR,
+          transaction_desc VARCHAR,
+          mpesa_receipt_number VARCHAR,
+          result_code INTEGER,
+          result_desc TEXT,
+          status VARCHAR DEFAULT 'Pending',
+          inv_id INTEGER,
+          invoice_no VARCHAR,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        )
+      `);
 
       // GET /payments/registration-fee
       if (segments[1] === 'registration-fee' && method === 'GET') {
@@ -774,15 +794,15 @@ export default async (req: VercelRequest, res: VercelResponse) => {
           if (paymentTx.rows.length === 0) {
             return res.status(400).json({ message: 'M-Pesa transaction not found. Complete payment first.' });
           }
-          const tx = paymentTx.rows[0];
-          const isPaid = tx.status === 'Completed' || Number(tx.result_code) === 0;
+          const mpesaTx = paymentTx.rows[0];
+          const isPaid = mpesaTx.status === 'Completed' || Number(mpesaTx.result_code) === 0;
           if (!isPaid) {
             return res.status(400).json({ message: 'M-Pesa payment not completed yet.' });
           }
           // Get dynamic registration fee
           const feeRes = await pool.query(`SELECT value FROM hms_settings WHERE key = 'registration_fee'`);
           const registrationFee = feeRes.rows.length > 0 ? Number(feeRes.rows[0].value) : 300;
-          if (Number(tx.amount || 0) < registrationFee) {
+          if (Number(mpesaTx.amount || 0) < registrationFee) {
             return res.status(400).json({ message: `Registration fee must be at least KSh ${registrationFee} via M-Pesa.` });
           }
 
@@ -824,7 +844,7 @@ export default async (req: VercelRequest, res: VercelResponse) => {
             await client.query(
               `INSERT INTO hms_payments (invoice_id, amount, method, transaction_code, created_at, updated_at)
                VALUES ($1,$2,$3,$4,NOW(),NOW())`,
-              [inv.rows[0].id, registrationFee, 'mpesa', tx.mpesa_receipt_number || tx.checkout_request_id]
+              [inv.rows[0].id, registrationFee, 'mpesa', mpesaTx.mpesa_receipt_number || mpesaTx.checkout_request_id]
             );
             await client.query(
               `UPDATE hms_mpesa_transactions
