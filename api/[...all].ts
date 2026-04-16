@@ -655,16 +655,16 @@ export default async (req: VercelRequest, res: VercelResponse) => {
             params
           );
 
-          // Get summary stats
+          // Get summary stats (using CASE WHEN instead of FILTER for PgBouncer compatibility)
           const today = new Date().toISOString().slice(0, 10);
           const stats = await pool.query(`
             SELECT
-              COUNT(*) FILTER (WHERE mt.status = 'Completed' AND mt.created_at::date = $1) as paid_today,
-              COUNT(*) FILTER (WHERE mt.status = 'Completed') as total_payments,
-              COALESCE(SUM(mt.amount) FILTER (WHERE mt.status = 'Completed' AND mt.created_at::date = $1), 0) as amount_today,
-              COALESCE(SUM(mt.amount) FILTER (WHERE mt.status = 'Completed'), 0) as total_amount,
-              COUNT(*) FILTER (WHERE mt.status = 'Failed') as failed_payments,
-              COUNT(*) FILTER (WHERE mt.status = 'Cancelled') as cancelled_payments
+              COUNT(CASE WHEN mt.status = 'Completed' AND mt.created_at::date = $1 THEN 1 END) as paid_today,
+              COUNT(CASE WHEN mt.status = 'Completed' THEN 1 END) as total_payments,
+              COALESCE(SUM(CASE WHEN mt.status = 'Completed' AND mt.created_at::date = $1 THEN mt.amount END), 0) as amount_today,
+              COALESCE(SUM(CASE WHEN mt.status = 'Completed' THEN mt.amount END), 0) as total_amount,
+              COUNT(CASE WHEN mt.status = 'Failed' THEN 1 END) as failed_payments,
+              COUNT(CASE WHEN mt.status = 'Cancelled' THEN 1 END) as cancelled_payments
             FROM hms_mpesa_transactions mt
           `, [today]);
 
@@ -683,8 +683,8 @@ export default async (req: VercelRequest, res: VercelResponse) => {
           // New user amounts vs renewal amounts
           const newVsRenewal = await pool.query(`
             SELECT
-              COALESCE(SUM(mt.amount), 0) FILTER (WHERE p.created_at::date = mt.created_at::date) as new_user_amount,
-              COALESCE(SUM(mt.amount), 0) FILTER (WHERE p.created_at::date != mt.created_at::date) as renewal_amount
+              COALESCE(SUM(CASE WHEN p.created_at::date = mt.created_at::date THEN mt.amount END), 0) as new_user_amount,
+              COALESCE(SUM(CASE WHEN p.created_at::date != mt.created_at::date THEN mt.amount END), 0) as renewal_amount
             FROM hms_mpesa_transactions mt
             JOIN hms_patients p ON mt.phone_number = p.phone
             WHERE mt.status = 'Completed' AND mt.created_at::date = $1
