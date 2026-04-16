@@ -229,7 +229,7 @@ export default function PatientRegistrationPage() {
       occupation: formData.occupation,
       registrationPayment: {
         checkoutRequestId: paidCheckoutRequestId,
-        amount: 300,
+        amount: registrationFee,
       },
     };
 

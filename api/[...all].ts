@@ -811,6 +811,11 @@ export default async (req: VercelRequest, res: VercelResponse) => {
 
             const patient = r.rows[0];
             const invoiceNumber = `REG-${patient.id}-${Date.now().toString().slice(-6)}`;
+
+            // Ensure enum types have the values we need (safe to run multiple times)
+            try { await pool.query(`ALTER TYPE enum_hms_payments_method ADD VALUE IF NOT EXISTS 'mpesa'`); } catch(e: any) { console.log('[ENUM] payments_method mpesa:', e.message); }
+            try { await pool.query(`ALTER TYPE enum_hms_invoices_status ADD VALUE IF NOT EXISTS 'paid'`); } catch(e: any) { console.log('[ENUM] invoices_status paid:', e.message); }
+
             const inv = await client.query(
               `INSERT INTO hms_invoices (patient_id, invoice_number, amount, status, created_at, updated_at)
                VALUES ($1,$2,$3,$4,NOW(),NOW()) RETURNING *`,
