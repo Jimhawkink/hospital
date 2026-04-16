@@ -299,12 +299,29 @@ export default function PatientRegistrationPage() {
         try {
           const statusRes = await api.get(`/mpesa/status?checkoutRequestId=${encodeURIComponent(id)}`);
           const st = statusRes.data || {};
+          console.log(`[MPESA POLL] status=${st.status}, resultCode=${st.resultCode}, isPending=${st.isPending}, success=${st.success}`);
+
+          // Payment completed successfully
           if (st.success || st.status === "Completed") {
             setPaymentStatus("success");
             setPaymentMessage("Payment received successfully.");
             await submitPatientAfterPayment(id);
             return;
           }
+
+          // Still pending — callback hasn't arrived yet, KEEP POLLING
+          if (st.isPending || st.status === "Pending" || st.resultCode === null || st.resultCode === undefined) {
+            if (Date.now() - startedAt > 120000) {
+              setPaymentStatus("failed");
+              setPaymentMessage("Payment timeout. Please re-push STK.");
+              return;
+            }
+            setPaymentMessage("Waiting for M-Pesa confirmation... (patient should enter PIN)");
+            setTimeout(poll, 4000);
+            return;
+          }
+
+          // Cancelled by user
           if (st.resultCode === 1032 || st.status === "Cancelled") {
             setPaymentStatus("cancelled");
             setPaymentMessage("Payment cancelled by user.");
@@ -328,29 +345,38 @@ export default function PatientRegistrationPage() {
             setPaymentMessage("Payment timed out. Please try again.");
             return;
           }
-          // Generic failure
-          if ((st.resultCode !== undefined && st.resultCode !== 0) || st.status === "Failed") {
+          // Generic failure — only if result_code is a real non-zero number
+          if (typeof st.resultCode === "number" && st.resultCode !== 0) {
             const desc = st.resultDesc || "Payment failed.";
             setPaymentStatus("failed");
             setPaymentMessage(desc.includes("unresolved") ? "Transaction could not be completed. Please try again." : desc);
             return;
           }
+          // Status is Failed from callback
+          if (st.status === "Failed") {
+            setPaymentStatus("failed");
+            setPaymentMessage(st.resultDesc || "Payment failed.");
+            return;
+          }
+
+          // Fallback: keep polling
           if (Date.now() - startedAt > 120000) {
             setPaymentStatus("failed");
             setPaymentMessage("Payment timeout. Please re-push STK.");
             return;
           }
-          setTimeout(poll, 3500);
-        } catch {
+          setTimeout(poll, 4000);
+        } catch (err) {
+          console.error(`[MPESA POLL] Error:`, err);
           if (Date.now() - startedAt > 120000) {
             setPaymentStatus("failed");
             setPaymentMessage("Unable to confirm payment status.");
             return;
           }
-          setTimeout(poll, 3500);
+          setTimeout(poll, 4000);
         }
       };
-      setTimeout(poll, 3000);
+      setTimeout(poll, 5000);
     } catch (err: any) {
       setPaymentStatus("failed");
       setPaymentMessage(err?.response?.data?.message || "Failed to initiate M-Pesa payment.");

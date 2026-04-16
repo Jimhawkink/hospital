@@ -374,9 +374,9 @@ export default async (req: VercelRequest, res: VercelResponse) => {
 
     // ========== M-PESA ==========
     if (segments[0] === 'mpesa') {
-      // Ensure mpesa_transactions table exists
+      // Ensure hospital-specific mpesa_transactions table exists
       await pool.query(`
-        CREATE TABLE IF NOT EXISTS mpesa_transactions (
+        CREATE TABLE IF NOT EXISTS hms_mpesa_transactions (
           id SERIAL PRIMARY KEY,
           checkout_request_id VARCHAR UNIQUE,
           merchant_request_id VARCHAR,
@@ -388,6 +388,8 @@ export default async (req: VercelRequest, res: VercelResponse) => {
           result_code INTEGER,
           result_desc TEXT,
           status VARCHAR DEFAULT 'Pending',
+          inv_id INTEGER,
+          invoice_no VARCHAR,
           created_at TIMESTAMPTZ DEFAULT NOW(),
           updated_at TIMESTAMPTZ DEFAULT NOW()
         )
@@ -463,7 +465,7 @@ export default async (req: VercelRequest, res: VercelResponse) => {
 
         if (checkoutRequestId) {
           await pool.query(
-            `INSERT INTO mpesa_transactions
+            `INSERT INTO hms_mpesa_transactions
              (checkout_request_id, merchant_request_id, phone_number, amount, account_reference, transaction_desc, status, created_at, updated_at)
              VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),NOW())
              ON CONFLICT (checkout_request_id)
@@ -483,21 +485,24 @@ export default async (req: VercelRequest, res: VercelResponse) => {
         const checkoutRequestId = String(req.query?.checkoutRequestId || req.query?.checkout_request_id || '');
         if (!checkoutRequestId) return res.status(400).json({ message: 'checkoutRequestId is required' });
         const txr = await pool.query(
-          `SELECT * FROM mpesa_transactions WHERE checkout_request_id=$1 ORDER BY created_at DESC LIMIT 1`,
+          `SELECT * FROM hms_mpesa_transactions WHERE checkout_request_id=$1 ORDER BY created_at DESC LIMIT 1`,
           [checkoutRequestId]
         );
         if (txr.rows.length === 0) return res.status(404).json({ message: 'Transaction not found' });
         const tx = txr.rows[0];
-        const rc = tx.result_code;
+        const rc = tx.result_code; // null when callback hasn't arrived yet
         const status = tx.status || 'Pending';
+        const isPending = status === 'Pending' && (rc === null || rc === undefined);
+        console.log(`[MPESA STATUS] checkoutRequestId=${checkoutRequestId}, status=${status}, result_code=${rc}, isPending=${isPending}`);
         return res.json({
           status,
-          resultCode: rc,
-          resultDesc: tx.result_desc,
-          mpesaReceipt: tx.mpesa_receipt_number,
+          resultCode: rc === null || rc === undefined ? null : Number(rc),
+          resultDesc: tx.result_desc || null,
+          mpesaReceipt: tx.mpesa_receipt_number || null,
           amount: tx.amount,
           phone: tx.phone_number,
           success: status === 'Completed' || rc === 0,
+          isPending,
         });
       }
 
@@ -527,16 +532,17 @@ export default async (req: VercelRequest, res: VercelResponse) => {
           : 'Failed';
 
         if (checkoutRequestId) {
+          console.log(`[MPESA CALLBACK] checkoutRequestId=${checkoutRequestId}, resultCode=${resultCode}, status=${status}, receipt=${receipt}, amount=${amount}`);
           await pool.query(
-            `INSERT INTO mpesa_transactions
+            `INSERT INTO hms_mpesa_transactions
              (checkout_request_id, merchant_request_id, phone_number, amount, mpesa_receipt_number, result_code, result_desc, status, created_at, updated_at)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),NOW())
              ON CONFLICT (checkout_request_id)
              DO UPDATE SET
                merchant_request_id=EXCLUDED.merchant_request_id,
-               phone_number=COALESCE(EXCLUDED.phone_number, mpesa_transactions.phone_number),
-               amount=CASE WHEN EXCLUDED.amount > 0 THEN EXCLUDED.amount ELSE mpesa_transactions.amount END,
-               mpesa_receipt_number=COALESCE(EXCLUDED.mpesa_receipt_number, mpesa_transactions.mpesa_receipt_number),
+               phone_number=COALESCE(EXCLUDED.phone_number, hms_mpesa_transactions.phone_number),
+               amount=CASE WHEN EXCLUDED.amount > 0 THEN EXCLUDED.amount ELSE hms_mpesa_transactions.amount END,
+               mpesa_receipt_number=COALESCE(EXCLUDED.mpesa_receipt_number, hms_mpesa_transactions.mpesa_receipt_number),
                result_code=EXCLUDED.result_code,
                result_desc=EXCLUDED.result_desc,
                status=EXCLUDED.status,
@@ -609,7 +615,7 @@ export default async (req: VercelRequest, res: VercelResponse) => {
 
         const r = await pool.query(
           `SELECT mt.*, p.first_name as patient_first_name, p.last_name as patient_last_name, p.phone as patient_phone, p.id as patient_id
-           FROM mpesa_transactions mt
+           FROM hms_mpesa_transactions mt
            LEFT JOIN hms_patients p ON mt.phone_number = p.phone OR mt.account_reference = p.patient_number
            WHERE mt.status IS NOT NULL ${where}
            ORDER BY mt.created_at DESC`,
@@ -626,7 +632,7 @@ export default async (req: VercelRequest, res: VercelResponse) => {
             COALESCE(SUM(mt.amount) FILTER (WHERE mt.status = 'Completed'), 0) as total_amount,
             COUNT(*) FILTER (WHERE mt.status = 'Failed') as failed_payments,
             COUNT(*) FILTER (WHERE mt.status = 'Cancelled') as cancelled_payments
-          FROM mpesa_transactions mt
+          FROM hms_mpesa_transactions mt
         `, [today]);
 
         // New patients today
@@ -637,7 +643,7 @@ export default async (req: VercelRequest, res: VercelResponse) => {
         const renewals = await pool.query(`
           SELECT COUNT(DISTINCT p.id) as count
           FROM hms_patients p
-          JOIN mpesa_transactions mt ON mt.phone_number = p.phone AND mt.status = 'Completed'
+          JOIN hms_mpesa_transactions mt ON mt.phone_number = p.phone AND mt.status = 'Completed'
           WHERE p.created_at < NOW() - INTERVAL '1 year' AND mt.created_at::date = $1
         `, [today]);
 
@@ -646,7 +652,7 @@ export default async (req: VercelRequest, res: VercelResponse) => {
           SELECT
             COALESCE(SUM(mt.amount), 0) FILTER (WHERE p.created_at::date = mt.created_at::date) as new_user_amount,
             COALESCE(SUM(mt.amount), 0) FILTER (WHERE p.created_at::date != mt.created_at::date) as renewal_amount
-          FROM mpesa_transactions mt
+          FROM hms_mpesa_transactions mt
           JOIN hms_patients p ON mt.phone_number = p.phone
           WHERE mt.status = 'Completed' AND mt.created_at::date = $1
         `, [today]);
@@ -654,7 +660,7 @@ export default async (req: VercelRequest, res: VercelResponse) => {
         // Daily payment trend for charts (last 14 days)
         const dailyTrend = await pool.query(`
           SELECT DATE(mt.created_at) as date, COUNT(*) as count, COALESCE(SUM(mt.amount), 0) as total
-          FROM mpesa_transactions mt
+          FROM hms_mpesa_transactions mt
           WHERE mt.status = 'Completed' AND mt.created_at >= NOW() - INTERVAL '14 days'
           GROUP BY DATE(mt.created_at) ORDER BY DATE(mt.created_at)
         `);
@@ -762,7 +768,7 @@ export default async (req: VercelRequest, res: VercelResponse) => {
             return res.status(400).json({ message: 'Registration payment is required before saving patient.' });
           }
           const paymentTx = await pool.query(
-            `SELECT * FROM mpesa_transactions WHERE checkout_request_id=$1 ORDER BY updated_at DESC LIMIT 1`,
+            `SELECT * FROM hms_mpesa_transactions WHERE checkout_request_id=$1 ORDER BY updated_at DESC LIMIT 1`,
             [registrationPayment.checkoutRequestId]
           );
           if (paymentTx.rows.length === 0) {
@@ -816,7 +822,7 @@ export default async (req: VercelRequest, res: VercelResponse) => {
               [inv.rows[0].id, registrationFee, 'mpesa', tx.mpesa_receipt_number || tx.checkout_request_id]
             );
             await client.query(
-              `UPDATE mpesa_transactions
+              `UPDATE hms_mpesa_transactions
                SET inv_id=$1, invoice_no=$2, updated_at=NOW()
                WHERE checkout_request_id=$3`,
               [inv.rows[0].id, invoiceNumber, registrationPayment.checkoutRequestId]
